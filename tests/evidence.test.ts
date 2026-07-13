@@ -13,6 +13,7 @@ describe("captureDeviceEvidence", () => {
     });
 
     expect(sink.artifacts).toEqual([
+      expect.objectContaining({ kind: "raw-accessibility-tree", device: "primary" }),
       expect.objectContaining({ kind: "accessibility-tree", device: "primary" }),
       expect.objectContaining({ kind: "capture-error", device: "primary" }),
       expect.objectContaining({ kind: "command-log", device: "primary" })

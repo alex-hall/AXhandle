@@ -50,11 +50,13 @@ failureTest.fails("captures evidence before resetting a failed test", async ({ d
 afterAll(() => {
   expect(events).toEqual(["before", "test", "reset"]);
   expect(evidence.artifacts).toEqual([
+    expect.objectContaining({ kind: "raw-accessibility-tree", device: "primary" }),
     expect.objectContaining({ kind: "accessibility-tree", device: "primary" }),
     expect.objectContaining({ kind: "command-log", device: "primary" })
   ]);
   expect(failureEvents).toEqual(["reset"]);
   expect(failureEvidence.artifacts).toEqual([
+    expect.objectContaining({ kind: "raw-accessibility-tree", device: "failure-device" }),
     expect.objectContaining({ kind: "accessibility-tree", device: "failure-device" }),
     expect.objectContaining({ kind: "command-log", device: "failure-device" })
   ]);

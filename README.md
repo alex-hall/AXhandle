@@ -89,8 +89,9 @@ is no Cypress-style hidden command queue.
 
 ## Failure evidence
 
-The Vitest fixture can capture a normalized accessibility tree and command log
-when a test fails. Consumers own the destination through an artifact sink:
+The Vitest fixture can capture raw AXe JSON, a normalized accessibility tree,
+and a command log when a test fails. Consumers own the destination through an
+artifact sink:
 
 ```ts
 import { InMemoryArtifactSink } from "axe-typescript";

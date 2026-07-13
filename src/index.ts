@@ -7,7 +7,13 @@ export type {
   AxeCommandRunner
 } from "./axe-cli-driver.js";
 export { Device } from "./device.js";
-export type { DeviceCommandLogEntry, DeviceCommandStatus, DeviceOptions, DeviceTimeouts } from "./device.js";
+export type {
+  DeviceCommandLogEntry,
+  DeviceCommandStatus,
+  DeviceOptions,
+  DeviceTimeouts,
+  UiSnapshot
+} from "./device.js";
 export { Locator, LocatorResolutionError, LocatorTimeoutError } from "./locator.js";
 export { normalizeAxeNode, normalizeAxeTree } from "./tree.js";
 export type {

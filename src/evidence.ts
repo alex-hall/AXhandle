@@ -2,7 +2,7 @@ import type { Device } from "./device.js";
 
 export type AxeArtifact =
   | {
-      kind: "accessibility-tree" | "command-log";
+      kind: "raw-accessibility-tree" | "accessibility-tree" | "command-log";
       device: string;
       contentType: "application/json";
       body: unknown;
@@ -48,11 +48,18 @@ export async function captureDeviceEvidence(
   options: CaptureDeviceEvidenceOptions = {}
 ): Promise<void> {
   try {
+    const snapshot = await device.uiSnapshot();
+    await sink.write({
+      kind: "raw-accessibility-tree",
+      device: device.name,
+      contentType: "application/json",
+      body: snapshot.raw
+    });
     await sink.write({
       kind: "accessibility-tree",
       device: device.name,
       contentType: "application/json",
-      body: await device.accessibilityTree()
+      body: snapshot.tree
     });
   } catch (error) {
     await sink.write(captureError(device, "accessibility tree", error));

@@ -33,6 +33,11 @@ export interface DeviceCommandLogEntry {
   error?: string;
 }
 
+export interface UiSnapshot {
+  raw: unknown;
+  tree: AccessibilityTree;
+}
+
 const defaultTimeouts: DeviceTimeouts = {
   action: 3_000,
   assertion: 5_000,
@@ -82,7 +87,14 @@ export class Device {
   }
 
   async accessibilityTree(): Promise<AccessibilityTree> {
-    return this.enqueue("inspect", async () => normalizeAxeTree(await this.driver.describeUi()));
+    return (await this.uiSnapshot()).tree;
+  }
+
+  async uiSnapshot(): Promise<UiSnapshot> {
+    return this.enqueue("inspect", async () => {
+      const raw = await this.driver.describeUi();
+      return { raw, tree: normalizeAxeTree(raw) };
+    });
   }
 
   async count(locator: Locator): Promise<number> {
