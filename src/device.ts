@@ -1,11 +1,12 @@
-import { Locator } from "./locator.js";
+import { Locator, LocatorResolutionError, LocatorTimeoutError } from "./locator.js";
 import { normalizeAxeTree } from "./tree.js";
 import type {
   AccessibilityNode,
   AxeDriver,
   AxeTapTarget,
   Clock,
-  FillOptions
+  FillOptions,
+  WaitOptions
 } from "./types.js";
 import { systemClock } from "./types.js";
 
@@ -79,18 +80,16 @@ export class Device {
     );
   }
 
-  async click(locator: Locator): Promise<void> {
+  async click(locator: Locator, options: WaitOptions = {}): Promise<void> {
     await this.enqueue("click", async () => {
-      const tree = normalizeAxeTree(await this.driver.describeUi());
-      const node = locator.resolveFrom(tree);
+      const { tree, node } = await this.resolveActionTarget(locator, options);
       await this.driver.tap(this.tapTargetFor(node, tree));
     });
   }
 
-  async typeInto(locator: Locator, text: string): Promise<void> {
+  async typeInto(locator: Locator, text: string, options: WaitOptions = {}): Promise<void> {
     await this.enqueue("type", async () => {
-      const tree = normalizeAxeTree(await this.driver.describeUi());
-      const node = locator.resolveFrom(tree);
+      const { tree, node } = await this.resolveActionTarget(locator, options);
       await this.driver.tap(this.tapTargetFor(node, tree));
       await this.driver.type(text);
     });
@@ -98,8 +97,7 @@ export class Device {
 
   async fill(locator: Locator, text: string, options: FillOptions = {}): Promise<void> {
     await this.enqueue("fill", async () => {
-      const tree = normalizeAxeTree(await this.driver.describeUi());
-      const node = locator.resolveFrom(tree);
+      const { tree, node } = await this.resolveActionTarget(locator, options);
       await this.driver.tap(this.tapTargetFor(node, tree));
       // HID 227 is Left Command and 4 is the "A" key.
       await this.driver.keyCombo([227], 4);
@@ -135,6 +133,34 @@ export class Device {
     throw new Error(
       `Cannot tap ${node.role}: it has no unique accessibility id or frame.`
     );
+  }
+
+  private async resolveActionTarget(
+    locator: Locator,
+    options: WaitOptions
+  ): Promise<{ tree: ReturnType<typeof normalizeAxeTree>; node: AccessibilityNode }> {
+    const timeout = options.timeout ?? this.timeouts.action;
+    const interval = options.interval ?? this.timeouts.interval;
+    const deadline = this.clock.now() + timeout;
+    let lastError: LocatorResolutionError | undefined;
+
+    while (true) {
+      const tree = normalizeAxeTree(await this.driver.describeUi());
+      try {
+        return { tree, node: locator.resolveFrom(tree) };
+      } catch (error) {
+        if (!(error instanceof LocatorResolutionError)) throw error;
+        lastError = error;
+      }
+
+      if (this.clock.now() >= deadline) {
+        throw new LocatorTimeoutError(
+          `${locator.describe()} was not actionable within ${timeout}ms. ${lastError?.message ?? ""}`.trim()
+        );
+      }
+
+      await this.clock.sleep(interval);
+    }
   }
 
   private async enqueue<T>(

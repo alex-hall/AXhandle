@@ -84,12 +84,12 @@ export class Locator {
     ]);
   }
 
-  async click(): Promise<void> {
-    await this.device.click(this);
+  async click(options?: WaitOptions): Promise<void> {
+    await this.device.click(this, options);
   }
 
-  async type(text: string): Promise<void> {
-    await this.device.typeInto(this, text);
+  async type(text: string, options?: WaitOptions): Promise<void> {
+    await this.device.typeInto(this, text, options);
   }
 
   /** Replaces existing text with Command-A followed by AXe HID text entry. */

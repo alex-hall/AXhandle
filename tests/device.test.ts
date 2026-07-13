@@ -168,4 +168,15 @@ describe("Device locators", () => {
 
     expect(clock.elapsed()).toBe(25);
   });
+
+  it("waits for an action target before dispatching input", async () => {
+    const missing = { AXRole: "Application", AXChildren: [] };
+    const driver = new SequenceDriver([missing, messageScreen]);
+    const clock = fakeClock();
+    const device = new Device("primary", driver, { clock });
+
+    await device.findByTestId("send-a").click({ timeout: 100, interval: 25 });
+
+    expect(clock.elapsed()).toBe(25);
+  });
 });
