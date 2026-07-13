@@ -23,6 +23,7 @@ export type {
   AxeDoctorResult
 } from "./doctor.js";
 export { Locator, LocatorResolutionError, LocatorTimeoutError } from "./locator.js";
+export { checkedState } from "./state.js";
 export { normalizeAxeNode, normalizeAxeTree } from "./tree.js";
 export type {
   AccessibilityNode,

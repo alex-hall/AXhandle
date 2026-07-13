@@ -1,5 +1,6 @@
 import { test as baseTest } from "vitest";
 import { Locator } from "./locator.js";
+import { checkedState } from "./state.js";
 import type { Device } from "./device.js";
 import { captureDeviceEvidence } from "./evidence.js";
 import type { ArtifactSink, CaptureDeviceEvidenceOptions } from "./evidence.js";
@@ -14,7 +15,7 @@ const requireLocator = (received: unknown): Locator => {
 };
 
 const matcher = (
-  name: "visible" | "enabled" | "disabled" | "hidden",
+  name: "visible" | "enabled" | "disabled" | "hidden" | "checked" | "unchecked",
   predicate: (locator: Locator) => (node: Awaited<ReturnType<Locator["resolve"]>>) => boolean
 ) =>
   async function (this: MatcherContext, received: unknown, options?: WaitOptions) {
@@ -74,6 +75,8 @@ export const axeMatchers = {
   toBeEnabled: matcher("enabled", () => (node) => node.enabled === true),
   toBeDisabled: matcher("disabled", () => (node) => node.enabled === false),
   toBeHidden: matcher("hidden", () => (node) => !node.visible),
+  toBeChecked: matcher("checked", () => (node) => checkedState(node) === true),
+  toBeUnchecked: matcher("unchecked", () => (node) => checkedState(node) === false),
   toHaveText: equalityMatcher("text", (node) => node.label ?? String(node.value ?? "")),
   toHaveValue: equalityMatcher("value", (node) => node.value),
   async toHaveCount(this: MatcherContext, received: unknown, expected: number, options?: WaitOptions) {
@@ -178,6 +181,8 @@ declare module "@vitest/expect" {
     toBeEnabled(options?: WaitOptions): Promise<void>;
     toBeDisabled(options?: WaitOptions): Promise<void>;
     toBeHidden(options?: WaitOptions): Promise<void>;
+    toBeChecked(options?: WaitOptions): Promise<void>;
+    toBeUnchecked(options?: WaitOptions): Promise<void>;
     toHaveText(expected: string, options?: WaitOptions): Promise<void>;
     toHaveValue(
       expected: string | number | boolean,

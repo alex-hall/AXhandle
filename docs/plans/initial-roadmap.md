@@ -97,7 +97,9 @@ flows while keeping the public API small and unsurprising.
 - [ ] Add intentional query refinements only where fixtures prove a need
   (partial text, regular expressions, ancestor/descendant relationships).
 - [ ] Add native interactions behind the driver boundary: swipe, drag, scroll,
-  toggle, slider, hardware buttons, and key sequences.
+  slider, hardware buttons, and key sequences. `check()` and `uncheck()` now
+  provide state-aware switch/checkbox interaction through the existing tap
+  primitive.
 - [ ] Decide and document unsupported or unreliable input cases, especially
   secure fields and non-US HID characters.
 - [ ] Add focused action options rather than global mutable configuration.

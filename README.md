@@ -163,6 +163,18 @@ accessibility value (such as secure text entry), skip only the value check:
 await device.findByTestId("password").fill("correct-horse", { verify: false });
 ```
 
+## Switches and checkboxes
+
+`check()` and `uncheck()` read the current accessibility state, tap only when
+necessary, and retry until AXe reports the desired result:
+
+```ts
+const notifications = device.findByRole("switch", { name: "Notifications" });
+
+await notifications.check();
+await expect(notifications).toBeChecked();
+```
+
 ## Timeouts
 
 There are three timeout levels:

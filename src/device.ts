@@ -1,4 +1,5 @@
 import { Locator, LocatorResolutionError, LocatorTimeoutError } from "./locator.js";
+import { checkedState } from "./state.js";
 import { normalizeAxeTree } from "./tree.js";
 import type {
   AccessibilityNode,
@@ -26,7 +27,7 @@ export type DeviceCommandStatus = "passed" | "failed";
 
 export interface DeviceCommandLogEntry {
   sequence: number;
-  command: "inspect" | "click" | "type" | "fill" | "screenshot";
+  command: "inspect" | "click" | "type" | "fill" | "check" | "uncheck" | "screenshot";
   startedAt: number;
   finishedAt: number;
   status: DeviceCommandStatus;
@@ -133,6 +134,24 @@ export class Device {
         interval: options.interval
       });
     }
+  }
+
+  async setChecked(locator: Locator, expected: boolean, options: WaitOptions = {}): Promise<void> {
+    await this.enqueue(expected ? "check" : "uncheck", async () => {
+      const { tree, node } = await this.resolveActionTarget(locator, options);
+      const current = checkedState(node);
+      if (current === undefined) {
+        throw new Error(
+          `Cannot ${expected ? "check" : "uncheck"} ${locator.describe()}: AXe did not report a switch state.`
+        );
+      }
+      if (current !== expected) await this.driver.tap(this.tapTargetFor(node, tree));
+    });
+
+    await locator.waitFor((node) => checkedState(node) === expected, {
+      timeout: options.timeout ?? this.timeouts.action,
+      interval: options.interval
+    });
   }
 
   async screenshot(output: string): Promise<string> {

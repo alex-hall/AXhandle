@@ -97,6 +97,16 @@ export class Locator {
     await this.device.fill(this, text, options);
   }
 
+  /** Ensures a switch- or checkbox-like control is checked. */
+  async check(options?: WaitOptions): Promise<void> {
+    await this.device.setChecked(this, true, options);
+  }
+
+  /** Ensures a switch- or checkbox-like control is unchecked. */
+  async uncheck(options?: WaitOptions): Promise<void> {
+    await this.device.setChecked(this, false, options);
+  }
+
   async resolve(): Promise<AccessibilityNode> {
     return this.device.inspect(this);
   }

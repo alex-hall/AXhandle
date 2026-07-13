@@ -162,6 +162,61 @@ describe("Device locators", () => {
     await expect(device.findByTestId("message-input")).toHaveText("Message");
   });
 
+  it("checks and unchecks AXe switch values without redundant taps", async () => {
+    const unchecked = {
+      AXRole: "Application",
+      AXChildren: [{
+        AXRole: "CheckBox",
+        AXUniqueId: "notifications",
+        AXLabel: "Notifications",
+        AXValue: "0",
+        AXEnabled: true,
+        frame: { x: 300, y: 16, width: 60, height: 28 }
+      }]
+    };
+    const checked = structuredClone(unchecked) as typeof unchecked;
+    checked.AXChildren[0]!.AXValue = "1";
+
+    const driver = new FixtureAxeDriver(unchecked, [{
+      when: (call) => call.kind === "tap",
+      nextUi: checked
+    }]);
+    const device = new Device("primary", driver);
+    const notifications = device.findByTestId("notifications");
+
+    await expect(notifications).toBeUnchecked();
+    await notifications.check();
+    await expect(notifications).toBeChecked();
+    await notifications.check();
+
+    expect(driver.calls.filter((call) => call.kind === "tap")).toHaveLength(1);
+    expect(device.commandLog()).toContainEqual(expect.objectContaining({ command: "check" }));
+  });
+
+  it("unchecks an already checked control", async () => {
+    const checked = {
+      AXRole: "Application",
+      AXChildren: [{
+        AXRole: "CheckBox",
+        AXUniqueId: "notifications",
+        AXLabel: "Notifications",
+        AXValue: true,
+        AXEnabled: true,
+        frame: { x: 300, y: 16, width: 60, height: 28 }
+      }]
+    };
+    const unchecked = structuredClone(checked) as typeof checked;
+    unchecked.AXChildren[0]!.AXValue = false;
+    const driver = new FixtureAxeDriver(checked, [{
+      when: (call) => call.kind === "tap",
+      nextUi: unchecked
+    }]);
+    const device = new Device("primary", driver);
+
+    await device.findByTestId("notifications").uncheck();
+    await expect(device.findByTestId("notifications")).toBeUnchecked();
+  });
+
   it("retries asynchronous assertions against sequenced fixture trees", async () => {
     const hidden = {
       AXRole: "Application",
