@@ -20,6 +20,17 @@ export interface DeviceOptions {
   timeouts?: Partial<DeviceTimeouts>;
 }
 
+export type DeviceCommandStatus = "passed" | "failed";
+
+export interface DeviceCommandLogEntry {
+  sequence: number;
+  command: "inspect" | "click" | "type" | "fill";
+  startedAt: number;
+  finishedAt: number;
+  status: DeviceCommandStatus;
+  error?: string;
+}
+
 const defaultTimeouts: DeviceTimeouts = {
   action: 3_000,
   assertion: 5_000,
@@ -34,6 +45,8 @@ export class Device {
   readonly clock: Clock;
   readonly timeouts: DeviceTimeouts;
   private tail: Promise<void> = Promise.resolve();
+  private sequence = 0;
+  private readonly log: DeviceCommandLogEntry[] = [];
 
   constructor(
     readonly name: string,
@@ -61,11 +74,13 @@ export class Device {
   }
 
   async inspect(locator: Locator): Promise<AccessibilityNode> {
-    return this.enqueue(async () => locator.resolveFrom(normalizeAxeTree(await this.driver.describeUi())));
+    return this.enqueue("inspect", async () =>
+      locator.resolveFrom(normalizeAxeTree(await this.driver.describeUi()))
+    );
   }
 
   async click(locator: Locator): Promise<void> {
-    await this.enqueue(async () => {
+    await this.enqueue("click", async () => {
       const tree = normalizeAxeTree(await this.driver.describeUi());
       const node = locator.resolveFrom(tree);
       await this.driver.tap(this.tapTargetFor(node, tree));
@@ -73,7 +88,7 @@ export class Device {
   }
 
   async typeInto(locator: Locator, text: string): Promise<void> {
-    await this.enqueue(async () => {
+    await this.enqueue("type", async () => {
       const tree = normalizeAxeTree(await this.driver.describeUi());
       const node = locator.resolveFrom(tree);
       await this.driver.tap(this.tapTargetFor(node, tree));
@@ -82,7 +97,7 @@ export class Device {
   }
 
   async fill(locator: Locator, text: string, options: FillOptions = {}): Promise<void> {
-    await this.enqueue(async () => {
+    await this.enqueue("fill", async () => {
       const tree = normalizeAxeTree(await this.driver.describeUi());
       const node = locator.resolveFrom(tree);
       await this.driver.tap(this.tapTargetFor(node, tree));
@@ -97,6 +112,11 @@ export class Device {
         interval: options.interval
       });
     }
+  }
+
+  /** A copy of the structured command history for reporters and artifact sinks. */
+  commandLog(): readonly DeviceCommandLogEntry[] {
+    return this.log.map((entry) => ({ ...entry }));
   }
 
   private tapTargetFor(node: AccessibilityNode, tree: ReturnType<typeof normalizeAxeTree>): AxeTapTarget {
@@ -117,7 +137,10 @@ export class Device {
     );
   }
 
-  private async enqueue<T>(operation: () => Promise<T>): Promise<T> {
+  private async enqueue<T>(
+    command: DeviceCommandLogEntry["command"],
+    operation: () => Promise<T>
+  ): Promise<T> {
     const previous = this.tail;
     let release: (() => void) | undefined;
     this.tail = new Promise<void>((resolve) => {
@@ -125,8 +148,28 @@ export class Device {
     });
 
     await previous;
+    const sequence = ++this.sequence;
+    const startedAt = this.clock.now();
     try {
-      return await operation();
+      const result = await operation();
+      this.log.push({
+        sequence,
+        command,
+        startedAt,
+        finishedAt: this.clock.now(),
+        status: "passed"
+      });
+      return result;
+    } catch (error) {
+      this.log.push({
+        sequence,
+        command,
+        startedAt,
+        finishedAt: this.clock.now(),
+        status: "failed",
+        error: error instanceof Error ? error.message : String(error)
+      });
+      throw error;
     } finally {
       release?.();
     }

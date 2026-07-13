@@ -33,6 +33,10 @@ describe("Device locators", () => {
     await expect(device.findByText("Hello").second().resolve()).resolves.toMatchObject({
       label: "Hello"
     });
+
+    expect(device.commandLog()).toContainEqual(
+      expect.objectContaining({ command: "inspect", status: "failed" })
+    );
   });
 
   it("uses a unique id when tapping a scoped locator", async () => {
