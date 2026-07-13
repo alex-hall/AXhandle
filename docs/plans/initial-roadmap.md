@@ -92,8 +92,8 @@ flows while keeping the public API small and unsurprising.
   `composer` region into sibling accessibility elements, so descendant scoping
   is unavailable for that shape. A separate visual-region contract is a future
   design decision; the core remains hierarchy-strict.
-- [ ] Define accessibility-role normalization and document its supported role
-  names.
+- [x] Define accessibility-role normalization and document its supported role
+  names and framework differences from the public captures.
 - [ ] Add intentional query refinements only where fixtures prove a need
   (partial text, regular expressions, ancestor/descendant relationships).
 - [ ] Add native interactions behind the driver boundary: swipe, drag, scroll,

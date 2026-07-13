@@ -120,6 +120,8 @@ await expect(device.findByText("Delivered")).toBeVisible();
 Use `findByTestId` when semantic selectors cannot distinguish repeated controls
 or when it provides a useful stable scope. It is intentionally available, but
 the library does not require every interaction to be driven by opaque IDs.
+The supported role contract and known framework differences are documented in
+`docs/accessibility-roles.md`.
 
 ## Failure evidence
 
