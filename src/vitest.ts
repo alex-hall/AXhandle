@@ -100,9 +100,9 @@ export function createAxeTest<TDevices extends DeviceSet>(
     devices: async ({}, use) => {
       const devices = await options.createDevices();
       const context = { devices };
-      await options.beforeTest?.(context);
 
       try {
+        await options.beforeTest?.(context);
         await use(devices);
       } finally {
         await options.reset?.(context);
