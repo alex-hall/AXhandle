@@ -24,6 +24,19 @@ export type {
 } from "./doctor.js";
 export { Locator, LocatorResolutionError, LocatorTimeoutError } from "./locator.js";
 export { checkedState } from "./state.js";
+export {
+  NodeSimulatorCommandRunner,
+  SimulatorCommandError,
+  UnsupportedBiometricController,
+  XcrunSimulatorController
+} from "./simulator-control.js";
+export type {
+  BiometricController,
+  LaunchSimulatorAppOptions,
+  SimulatorCommandResult,
+  SimulatorCommandRunner,
+  SimulatorController
+} from "./simulator-control.js";
 export { normalizeAxeNode, normalizeAxeTree } from "./tree.js";
 export type {
   AccessibilityNode,

@@ -278,6 +278,27 @@ The result retains every individual check, so an unavailable AXe binary, an
 unbooted simulator, malformed UI response, and screenshot failure remain
 distinct and actionable.
 
+## Optional simulator and biometric control
+
+`Device` deliberately does not launch apps, erase simulators, or grant OS
+permissions. Consumers that want Xcode simulator control can opt into the
+shell-free `XcrunSimulatorController` instead:
+
+```ts
+import { XcrunSimulatorController } from "axe-typescript";
+
+const simulator = new XcrunSimulatorController();
+await simulator.install(udid, "/path/to/Example.app");
+await simulator.grantPermission(udid, "photos", "dev.example.app");
+await simulator.launch({ udid, bundleId: "dev.example.app" });
+```
+
+Biometric simulation is a separate `BiometricController` interface. The
+default `UnsupportedBiometricController` throws clearly because the validated
+Xcode 26.6 `simctl` installation exposes no biometric command. Inject a
+verified platform-specific adapter for Face ID enrollment, match, and
+non-match; it is not an AXe capability.
+
 ## Safety
 
 This is a public open-source project. Do not add private application code,

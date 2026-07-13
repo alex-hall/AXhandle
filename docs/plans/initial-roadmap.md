@@ -23,7 +23,7 @@ track or a public fixture proves they are needed.
 | Track | Status | Definition of done |
 | --- | --- | --- |
 | Multi-device core | Complete | Named device leases, direct lifecycle failure tests, documented two-simulator runbook, and a repeatable Alice-to-Bob React Native e2e flow. |
-| Simulator and system boundary | Next | Injected simulator-control and biometric/system-event interfaces with fixture coverage and explicit support limits. |
+| Simulator and system boundary | Complete | Shell-free optional Xcode simulator-control adapter plus a separate, explicitly unsupported-by-default biometric interface. |
 | Compatibility and public proof | Queued | Supported-version policy, compatibility matrix, and only the SwiftUI/UIKit e2e coverage justified by public captures. |
 | Release readiness | Queued | API docs, examples, license/publishing decisions, changelog, and release automation. |
 
@@ -140,12 +140,14 @@ of the portable core.
   version, booted simulator, accessibility-tree read, and optional screenshot
   path. A supported-version policy remains to be chosen.
 - [ ] Pin and document the supported AXe/Xcode compatibility matrix.
-- [ ] Define an optional simulator-control integration boundary for app launch,
+- [x] Define an optional simulator-control integration boundary for app launch,
   installation, termination, erase/reset, and permission setup.
-- [ ] Define an optional biometric/system-event integration boundary. Face ID
-  match/non-match must not be silently treated as an AXe core feature.
-- [ ] Ensure all process execution is shell-free and reports stdout/stderr with
-  useful context.
+- [x] Define an optional biometric/system-event integration boundary. Face ID
+  match/non-match must not be silently treated as an AXe core feature; the
+  validated Xcode 26.6 simctl installation has no biometric command, so the
+  default implementation fails explicitly until a verified adapter is injected.
+- [x] Ensure AXe and optional simulator-controller process execution is
+  shell-free and reports stderr with useful context.
 
 Acceptance criteria:
 
