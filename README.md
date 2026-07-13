@@ -29,6 +29,26 @@ This is an initial scaffold. The first vertical slice includes:
 The package deliberately has no simulator requirement for its default test
 suite. Real AXe/simulator conformance tests will be opt-in.
 
+## Public integration samples
+
+The workspace includes two deliberately small, public iOS samples outside the
+published package: a SwiftUI app in `apps/integration-sample-app` and a bare
+React Native app in `apps/react-native-sample-app`. They exercise the same
+composer, button, switch, and navigation control contract.
+
+The React Native sample's captured initial AXe tree is a regular fixture, so
+its locator behavior is covered by the default simulator-free suite. Live
+conformance is separately gated. After building, installing, and launching the
+sample app on a booted simulator, run:
+
+```sh
+AXE_CONFORMANCE=1 AXE_CONFORMANCE_UDID=<udid> npm run test:conformance
+```
+
+The live test waits for an accessibility condition rather than sleeping. It
+also puts its public sample form into a known state before exercising it, but
+the library itself intentionally does not own app launch or simulator reset.
+
 ## Fixtures
 
 Fixture tests use a versioned JSON envelope. Its `tree` is the untouched value
@@ -86,6 +106,20 @@ await composer.findByTestId("message-input").type("Hello");
 `findBy…` calls only construct immutable locator descriptions. Actions and
 assertions execute immediately as normal promises when they are awaited; there
 is no Cypress-style hidden command queue.
+
+## Locator strategy
+
+Favor selectors a person could understand from the interface: roles and their
+accessible names first, then visible text or labels. For example:
+
+```ts
+await device.findByRole("button", { name: "Send" }).click();
+await expect(device.findByText("Delivered")).toBeVisible();
+```
+
+Use `findByTestId` when semantic selectors cannot distinguish repeated controls
+or when it provides a useful stable scope. It is intentionally available, but
+the library does not require every interaction to be driven by opaque IDs.
 
 ## Failure evidence
 

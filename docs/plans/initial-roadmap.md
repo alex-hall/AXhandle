@@ -19,8 +19,8 @@ milestone changes state.
 | AXe CLI boundary | In progress | `describe-ui`, tap, type, key-combo, and screenshot are typed; version checks and remaining primitives are pending. |
 | Locator model | In progress | Strict, scoped `findBy…` locators and ordinal selection work; richer query types are pending. |
 | Vitest integration | In progress | Typed device fixture and async matchers work; artifact reporting is pending. |
-| Fixture-based testing | In progress | Versioned synthetic JSON fixtures and a fixture driver work; real captured corpus is pending. |
-| Real-simulator conformance | In progress | Public SwiftUI and React Native sample apps share a small control contract; live cases remain opt-in. |
+| Fixture-based testing | In progress | Versioned synthetic JSON fixtures and one provenance-tagged React Native capture work; broader corpus is pending. |
+| Real-simulator conformance | In progress | Public SwiftUI and React Native sample apps share a small control contract; an opt-in React Native flow now validates the live AXe bridge. |
 
 ## Design decisions already made
 
@@ -87,7 +87,11 @@ Status: planned.
 Goal: support the common native UI interactions needed for useful end-to-end
 flows while keeping the public API small and unsurprising.
 
-- [ ] Validate scoped locator behavior against a real AXe accessibility tree.
+- [x] Validate scoped locator behavior against a real AXe accessibility tree:
+  both current public SwiftUI and React Native samples flatten their visual
+  `composer` region into sibling accessibility elements, so descendant scoping
+  is unavailable for that shape. A separate visual-region contract is a future
+  design decision; the core remains hierarchy-strict.
 - [ ] Define accessibility-role normalization and document its supported role
   names.
 - [ ] Add intentional query refinements only where fixtures prove a need
@@ -140,13 +144,15 @@ Goal: prove the fixture model against a small, wholly public test application.
 - [ ] Build a minimal native control corpus: nested accessibility container,
   text field, button, toggle, navigation, and alert.
 - [ ] Capture a provenance-tagged corpus from UIKit, SwiftUI, and nested
-  accessibility containers.
+  accessibility containers. A React Native initial-state capture is committed.
 - [ ] Add opt-in conformance tests for inspect, nested locator resolution, tap,
-  type, fill, switch/toggle, screenshot, and orientation.
-- [ ] Run conformance tests only when explicit environment variables provide a
+  type, fill, switch/toggle, screenshot, and orientation. Semantic role/name
+  resolution, fill, tap, navigation, and reset hooks are covered for React
+  Native; descendant resolution remains blocked by the flattened AXe tree.
+- [x] Run conformance tests only when explicit environment variables provide a
   supported AXe binary and simulator UDID.
 - [ ] Record the AXe, Xcode, runtime, device, and orientation for every captured
-  fixture.
+  fixture. The React Native capture records all five; future captures must too.
 
 Acceptance criteria:
 
@@ -181,7 +187,7 @@ Acceptance criteria:
 
 | Risk | Why it matters | Mitigation |
 | --- | --- | --- |
-| Accessibility tree flattening | Scoped locators need parent/child relationships exposed by iOS accessibility, not merely React Native view nesting. | Validate with captured public fixtures before making broad locator guarantees. |
+| Accessibility tree flattening | AXe currently flattens the public SwiftUI and React Native sample’s visual `composer` region into sibling elements, so descendant scoping cannot work there. | Keep ordinary scoping hierarchy-strict; consider an explicitly named, frame-based visual-region feature only after defining its safety contract. |
 | AXe uses private simulator infrastructure | Xcode/runtime changes can alter behavior. | Pin compatibility, add doctor checks, and keep gated conformance tests. |
 | Native/system UI | Face ID, permissions, and system dialogs are not ordinary application accessibility targets. | Use optional Xcode/simulator-control integrations with explicit support boundaries. |
 | Over-eager abstraction | Premature caching, batching, and broad selectors can make failures opaque. | Start with fresh tree reads and fixture-backed evidence; optimize only from measurements. |

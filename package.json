@@ -36,6 +36,7 @@
     "react-native-app:install": "turbo run app:install --filter=@axe-typescript/react-native-sample-app",
     "react-native-app:pods": "npm --workspace @axe-typescript/react-native-sample-app run pods",
     "test": "vitest run",
+    "test:conformance": "vitest run tests/conformance",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },

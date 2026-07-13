@@ -62,7 +62,10 @@ function App() {
             <Text style={styles.buttonText}>Send</Text>
           </Pressable>
           {didSend && (
-            <Text style={styles.status} testID="delivery-status">
+            <Text
+              accessibilityLabel="Delivery status: Delivered"
+              style={styles.status}
+              testID="delivery-status">
               Delivered
             </Text>
           )}
