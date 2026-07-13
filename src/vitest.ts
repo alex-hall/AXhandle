@@ -110,14 +110,33 @@ export interface AxeTestLifecycle<TDevices extends DeviceSet> {
   devices: TDevices;
 }
 
-export interface CreateAxeTestOptions<TDevices extends DeviceSet> {
-  /** Allocates the devices for one Vitest test invocation. */
-  createDevices(): MaybePromise<TDevices>;
+/**
+ * Consumer-owned device allocation. Each `allocate()` call must return a fresh
+ * lease for one Vitest invocation; the harness releases it after reset.
+ */
+export interface AxeDeviceProvider<TDevices extends DeviceSet> {
+  allocate(): MaybePromise<TDevices>;
+  release?(devices: TDevices): MaybePromise<void>;
+}
+
+interface AxeTestLifecycleOptions<TDevices extends DeviceSet> {
   beforeTest?(context: AxeTestLifecycle<TDevices>): MaybePromise<void>;
   /** Always runs after the test body, including after a failed assertion. */
   reset?(context: AxeTestLifecycle<TDevices>): MaybePromise<void>;
   evidence?: VitestEvidenceOptions;
 }
+
+export type CreateAxeTestOptions<TDevices extends DeviceSet> =
+  | (AxeTestLifecycleOptions<TDevices> & {
+      /** Allocates the devices for one Vitest test invocation. */
+      createDevices(): MaybePromise<TDevices>;
+      deviceProvider?: never;
+    })
+  | (AxeTestLifecycleOptions<TDevices> & {
+      /** A consumer-owned provider for named device leases. */
+      deviceProvider: AxeDeviceProvider<TDevices>;
+      createDevices?: never;
+    });
 
 export interface VitestEvidenceOptions extends CaptureDeviceEvidenceOptions {
   sink: ArtifactSink;
@@ -132,9 +151,15 @@ export interface VitestEvidenceOptions extends CaptureDeviceEvidenceOptions {
 export function createAxeTest<TDevices extends DeviceSet>(
   options: CreateAxeTestOptions<TDevices>
 ) {
+  const provider = "deviceProvider" in options ? options.deviceProvider : undefined;
+  const createDevices = provider ? () => provider.allocate() : options.createDevices;
+  if (!createDevices) {
+    throw new TypeError("createAxeTest requires either createDevices or deviceProvider.");
+  }
+
   return baseTest.extend<{ devices: TDevices }>({
     devices: async ({}, use) => {
-      const devices = await options.createDevices();
+      const devices = await createDevices();
       const context = { devices };
       let primaryError: unknown;
       let deferredError: unknown;
@@ -163,6 +188,12 @@ export function createAxeTest<TDevices extends DeviceSet>(
 
         try {
           await options.reset?.(context);
+        } catch (error) {
+          deferredError ??= error;
+        }
+
+        try {
+          await provider?.release?.(devices);
         } catch (error) {
           deferredError ??= error;
         }

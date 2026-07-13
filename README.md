@@ -147,6 +147,39 @@ export const test = createAxeTest({
 Evidence is collected before `reset`. Capture and reset failures do not replace
 the original test failure.
 
+## Multiple devices
+
+For device pairs or larger test topologies, provide a lease allocator rather
+than letting the harness retain a global pool. Each invocation gets named,
+independent `Device` instances; reset runs before the lease is released:
+
+```ts
+export const test = createAxeTest({
+  deviceProvider: {
+    allocate: async () => ({
+      alice: await allocateSimulator("alice"),
+      bob: await allocateSimulator("bob")
+    }),
+    release: async ({ alice, bob }) => {
+      await Promise.all([releaseSimulator(alice), releaseSimulator(bob)]);
+    }
+  },
+  reset: async ({ devices }) => {
+    await Promise.all([resetApp(devices.alice), resetApp(devices.bob)]);
+  }
+});
+
+test("synchronizes two peers", async ({ devices }) => {
+  await Promise.all([
+    devices.alice.findByRole("button", { name: "Send" }).click(),
+    devices.bob.findByText("Incoming message").waitForVisible()
+  ]);
+});
+```
+
+`Device` serializes commands only within itself. Separate devices remain normal
+independent promises, so the provider determines allocation and parallelism.
+
 ## Text input
 
 `type()` appends HID keystrokes to the focused field. `fill()` replaces text by

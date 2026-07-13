@@ -8,6 +8,7 @@ const events: string[] = [];
 const evidence = new InMemoryArtifactSink();
 const failureEvents: string[] = [];
 const failureEvidence = new InMemoryArtifactSink();
+const providerEvents: string[] = [];
 
 const test = createAxeTest({
   createDevices: () => ({
@@ -47,6 +48,34 @@ failureTest.fails("captures evidence before resetting a failed test", async ({ d
   void devices;
 });
 
+const providerTest = createAxeTest({
+  deviceProvider: {
+    allocate: () => {
+      providerEvents.push("allocate");
+      return {
+        alice: new Device("alice", new FixtureAxeDriver({ AXRole: "Application" })),
+        bob: new Device("bob", new FixtureAxeDriver({ AXRole: "Application" }))
+      };
+    },
+    release: async (devices) => {
+      providerEvents.push(`release:${devices.alice.name},${devices.bob.name}`);
+    }
+  },
+  beforeTest: async () => {
+    providerEvents.push("before");
+  },
+  reset: async () => {
+    providerEvents.push("reset");
+  }
+});
+
+providerTest("leases named devices for one test invocation", async ({ devices }) => {
+  providerEvents.push("test");
+  expect(devices.alice).toBeInstanceOf(Device);
+  expect(devices.bob).toBeInstanceOf(Device);
+  expect(devices.alice).not.toBe(devices.bob);
+});
+
 afterAll(() => {
   expect(events).toEqual(["before", "test", "reset"]);
   expect(evidence.artifacts).toEqual([
@@ -59,5 +88,12 @@ afterAll(() => {
     expect.objectContaining({ kind: "raw-accessibility-tree", device: "failure-device" }),
     expect.objectContaining({ kind: "accessibility-tree", device: "failure-device" }),
     expect.objectContaining({ kind: "command-log", device: "failure-device" })
+  ]);
+  expect(providerEvents).toEqual([
+    "allocate",
+    "before",
+    "test",
+    "reset",
+    "release:alice,bob"
   ]);
 });
