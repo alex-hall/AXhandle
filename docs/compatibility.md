@@ -17,5 +17,7 @@ validated.
 | React Native sample | 0.83.0 |
 
 This is an evidence-based support policy, not a promise that nearby versions
-behave identically. Add a provenance-tagged capture and run the gated e2e suite
-before extending the supported version list.
+behave identically. The React Native e2e flow covers cross-device delivery;
+the SwiftUI flow covers native text, button, and switch controls. Add a
+provenance-tagged capture and run the gated e2e suite before extending the
+supported version list.

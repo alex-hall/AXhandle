@@ -281,6 +281,13 @@ distinct and actionable.
 The supported-version policy and validated public matrix are in
 `docs/compatibility.md`.
 
+To run the native SwiftUI sample proof after building and installing the app on
+a booted simulator:
+
+```sh
+AXE_E2E=1 AXE_E2E_SWIFTUI_UDID=<simulator-udid> npm run test:e2e
+```
+
 ## Optional simulator and biometric control
 
 `Device` deliberately does not launch apps, erase simulators, or grant OS

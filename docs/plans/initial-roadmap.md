@@ -24,7 +24,7 @@ track or a public fixture proves they are needed.
 | --- | --- | --- |
 | Multi-device core | Complete | Named device leases, direct lifecycle failure tests, documented two-simulator runbook, and a repeatable Alice-to-Bob React Native e2e flow. |
 | Simulator and system boundary | Complete | Shell-free optional Xcode simulator-control adapter plus a separate, explicitly unsupported-by-default biometric interface. |
-| Compatibility and public proof | In progress | AXe supported-version policy and validated matrix are recorded; only the SwiftUI/UIKit e2e coverage justified by public captures remains. |
+| Compatibility and public proof | Complete | AXe supported-version policy and validated matrix are recorded, with gated public SwiftUI native-control and React Native multi-device proofs. |
 | Release readiness | Queued | API docs, examples, license/publishing decisions, changelog, and release automation. |
 
 ## Progress snapshot
@@ -131,7 +131,7 @@ Acceptance criteria:
 
 ## Milestone 3 — AXe compatibility and simulator integrations
 
-Status: planned.
+Status: complete.
 
 Goal: make environmental failures legible and keep Xcode-specific concerns out
 of the portable core.
@@ -173,8 +173,9 @@ Goal: prove the fixture model against a small, wholly public test application.
 - [ ] Add opt-in end-to-end tests for inspect, nested locator resolution, tap,
   type, fill, switch/toggle, screenshot, and orientation. Semantic role/name
   resolution, fill, tap, navigation, reset hooks, and an Alice-to-Bob
-  two-simulator message delivery are covered for React Native; descendant
-  resolution remains blocked by the flattened AXe tree.
+  two-simulator message delivery are covered for React Native. The SwiftUI
+  proof covers a native text field, button, and switch. Descendant resolution
+  remains blocked by the flattened AXe tree.
 - [x] Run end-to-end tests only when explicit environment variables provide a
   supported AXe binary and simulator UDID.
 - [ ] Record the AXe, Xcode, runtime, device, and orientation for every captured
@@ -223,21 +224,18 @@ Acceptance criteria:
 
 ## Near-term order of work
 
-The original first vertical slice is complete: fixture-backed coverage, public
-SwiftUI/React Native samples, a diagnostic preflight, and a gated real
-Alice-to-Bob two-simulator React Native flow are all in place.
+The closure tracks through compatibility are complete. The next active track
+is release readiness, kept separate from new locator or interaction work.
 
-1. **Lifecycle hardening.** Add a lower-level test seam for reset, evidence,
-   and provider-release failures; verify that cleanup always runs and the
-   original test failure remains primary.
-2. **Optional simulator and system boundaries.** Define an injected,
-   shell-free simulator-control adapter for install, launch, termination,
-   erase/reset, and permissions. Define a separate biometric/system-event
-   adapter for Face ID enrollment, match, and non-match; neither belongs in the
-   AXe core driver.
-3. **Compatibility policy.** Record the currently validated AXe 1.7.1 / Xcode
-   26.6 / iOS 26.5 combination and decide how `diagnoseAxe` reports supported
-   versus merely detected versions.
+1. **Package contract.** Review the exports, package metadata, and install
+   shape from a consumer project; keep the samples and e2e-only code out of the
+   published artifact.
+2. **Consumer documentation.** Turn the existing examples into a short
+   getting-started path and a public API reference with clear simulator and
+   lifecycle ownership boundaries.
+3. **Maintainer decisions.** Choose a license, confirm package ownership and
+   availability, then add changelog and release automation. These need an
+   explicit maintainer decision before anything is published.
 4. **Fixture-led expansion.** Add live SwiftUI coverage, then screenshot,
    orientation, alert, UIKit, and deeper-container cases only when a public
    capture demonstrates a needed interaction. Do not add broad query
