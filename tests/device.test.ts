@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { Device, LocatorResolutionError } from "../src/index.js";
 import { FixtureAxeDriver, fixtureTree } from "../src/testing.js";
 import { axeMatchers } from "../src/vitest.js";
+import type { AxeDriver, AxeTapTarget, Clock } from "../src/types.js";
 
 expect.extend(axeMatchers);
 
@@ -14,6 +15,32 @@ const messageFixture = JSON.parse(await readFile(fixturePath, "utf8")) as {
   tree: unknown;
 };
 const messageScreen = fixtureTree(messageFixture);
+
+class SequenceDriver implements AxeDriver {
+  private reads = 0;
+
+  constructor(private readonly snapshots: readonly unknown[]) {}
+
+  async describeUi(): Promise<unknown> {
+    const index = Math.min(this.reads++, this.snapshots.length - 1);
+    return this.snapshots[index];
+  }
+
+  async tap(_target: AxeTapTarget): Promise<void> {}
+  async type(_text: string): Promise<void> {}
+  async keyCombo(_modifiers: readonly number[], _key: number): Promise<void> {}
+}
+
+const fakeClock = (): Clock & { elapsed(): number } => {
+  let time = 0;
+  return {
+    now: () => time,
+    sleep: async (milliseconds) => {
+      time += milliseconds;
+    },
+    elapsed: () => time
+  };
+};
 
 describe("Device locators", () => {
   it("scopes findBy queries to an accessibility fragment", async () => {
@@ -117,5 +144,28 @@ describe("Device locators", () => {
     expect(driver.calls).toContainEqual({ kind: "keyCombo", modifiers: [227], key: 4 });
     await expect(device.findByTestId("message-input")).toHaveValue("Hello");
     await expect(device.findByTestId("message-input")).toHaveText("Message");
+  });
+
+  it("retries asynchronous assertions against sequenced fixture trees", async () => {
+    const hidden = {
+      AXRole: "Application",
+      AXChildren: [
+        { AXRole: "StaticText", AXUniqueId: "status", AXLabel: "Connecting", AXVisible: false }
+      ]
+    };
+    const ready = {
+      AXRole: "Application",
+      AXChildren: [
+        { AXRole: "StaticText", AXUniqueId: "status", AXLabel: "Ready", AXVisible: true }
+      ]
+    };
+    const clock = fakeClock();
+    const device = new Device("primary", new SequenceDriver([hidden, ready]), { clock });
+    const status = device.findByTestId("status");
+
+    await expect(status).toBeVisible({ timeout: 100, interval: 25 });
+    await expect(status).toHaveText("Ready");
+
+    expect(clock.elapsed()).toBe(25);
   });
 });
