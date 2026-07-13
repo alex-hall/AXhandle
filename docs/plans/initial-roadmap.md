@@ -66,11 +66,11 @@ raw AXe output manually.
 - [ ] Add a consumer-provided artifact sink; do not impose a CI vendor or UI.
 - [ ] Capture configured evidence when a Vitest test fails while preserving the
   original assertion failure if cleanup also fails.
-- [ ] Add matcher coverage for hidden/visible, enabled/disabled, text, value,
+- [x] Add matcher coverage for hidden/visible, enabled/disabled, text, value,
   and count including `.not` semantics.
-- [ ] Improve strict-locator errors with scoped accessibility paths and useful
+- [x] Improve strict-locator errors with scoped accessibility paths and useful
   query-refinement suggestions.
-- [ ] Document timeout precedence: library default, Vitest test deadline, and
+- [x] Document timeout precedence: library default, Vitest test deadline, and
   per-action/per-assertion override.
 
 Acceptance criteria:

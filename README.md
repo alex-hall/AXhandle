@@ -129,6 +129,28 @@ accessibility value (such as secure text entry), skip only the value check:
 await device.findByTestId("password").fill("correct-horse", { verify: false });
 ```
 
+## Timeouts
+
+There are three timeout levels:
+
+1. A `Device` has defaults for actions (3 seconds), assertions (5 seconds),
+   and polling interval (100 milliseconds).
+2. Vitest owns the outer test deadline.
+3. Individual actions and assertions can override their own timeout.
+
+```ts
+const device = new Device("primary", driver, {
+  timeouts: { action: 5_000, assertion: 10_000 }
+});
+
+await device.findByTestId("send").click({ timeout: 8_000 });
+await expect(device.findByText("Delivered"))
+  .toBeVisible({ timeout: 15_000 });
+```
+
+Prefer a visible condition or assertion over an arbitrary delay. The public API
+intentionally has no manual sleep operation.
+
 ## Safety
 
 This is a public open-source project. Do not add private application code,
