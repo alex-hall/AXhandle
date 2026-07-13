@@ -35,21 +35,12 @@ AXe TypeScript provides:
 - a typed AXe driver boundary;
 - a normalised accessibility tree;
 - strict, chainable `findBy…` locators with `first()`, `second()`, and `nth()`;
-- a fixture driver for fast simulator-free tests;
 - async Vitest matchers and structured failure evidence; and
 - named, independently composable devices for multi-simulator flows.
 
-Your normal test suite can use fixtures without a booted simulator. Simulator
-tests remain ordinary opt-in Vitest tests that you configure with your own app
-lifecycle and devices.
-
-## Fixtures
-
-Fixture tests use a versioned JSON envelope. Its `tree` is the untouched value
-from `axe describe-ui`; metadata records whether it is synthetic or captured,
-plus the AXe/Xcode/runtime provenance when available. The fixture helper
-validates this envelope at runtime, so parser and locator behavior can be
-tested without a booted simulator.
+It is designed for simulator-backed end-to-end tests. Your suite supplies the
+simulator devices, application lifecycle, identity/provisioning, and reset
+behavior; this package supplies typed AXe interaction and assertion semantics.
 
 ## Vitest setup
 
