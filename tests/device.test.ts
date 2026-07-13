@@ -49,6 +49,8 @@ describe("Device locators", () => {
 
     await expect(aliceThread.findByText("Hello")).toBeVisible();
     await expect(aliceThread.findByRole("button", { name: "Send" })).toBeEnabled();
+    await expect(device.findByTestId("thread-b").findByRole("button", { name: "Send" })).toBeDisabled();
+    await expect(aliceThread.findByRole("button", { name: "Send" })).not.toBeDisabled();
   });
 
   it("requires an explicit positional choice for duplicate matches", async () => {

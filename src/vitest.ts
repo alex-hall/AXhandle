@@ -14,7 +14,7 @@ const requireLocator = (received: unknown): Locator => {
 };
 
 const matcher = (
-  name: "visible" | "enabled" | "hidden",
+  name: "visible" | "enabled" | "disabled" | "hidden",
   predicate: (locator: Locator) => (node: Awaited<ReturnType<Locator["resolve"]>>) => boolean
 ) =>
   async function (this: MatcherContext, received: unknown, options?: WaitOptions) {
@@ -72,6 +72,7 @@ const equalityMatcher = <T>(
 export const axeMatchers = {
   toBeVisible: matcher("visible", () => (node) => node.visible),
   toBeEnabled: matcher("enabled", () => (node) => node.enabled === true),
+  toBeDisabled: matcher("disabled", () => (node) => node.enabled === false),
   toBeHidden: matcher("hidden", () => (node) => !node.visible),
   toHaveText: equalityMatcher("text", (node) => node.label ?? String(node.value ?? "")),
   toHaveValue: equalityMatcher("value", (node) => node.value),
@@ -175,6 +176,7 @@ declare module "@vitest/expect" {
   interface Assertion<T = any> {
     toBeVisible(options?: WaitOptions): Promise<void>;
     toBeEnabled(options?: WaitOptions): Promise<void>;
+    toBeDisabled(options?: WaitOptions): Promise<void>;
     toBeHidden(options?: WaitOptions): Promise<void>;
     toHaveText(expected: string, options?: WaitOptions): Promise<void>;
     toHaveValue(
