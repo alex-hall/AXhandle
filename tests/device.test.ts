@@ -54,8 +54,8 @@ describe("Device locators", () => {
   it("requires an explicit positional choice for duplicate matches", async () => {
     const device = new Device("primary", new FixtureAxeDriver(messageScreen));
 
-    await expect(device.findByText("Hello").resolve()).rejects.toBeInstanceOf(
-      LocatorResolutionError
+    await expect(device.findByText("Hello").resolve()).rejects.toThrow(
+      'application > group#thread-a > statictext["Hello"]'
     );
     await expect(device.findByText("Hello").second().resolve()).resolves.toMatchObject({
       label: "Hello"

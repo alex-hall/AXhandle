@@ -1,5 +1,5 @@
 import type { Device } from "./device.js";
-import { descendants, nodeDescription } from "./tree.js";
+import { accessibilityPath, descendants, nodeDescription } from "./tree.js";
 import type {
   AccessibilityNode,
   AccessibilityTree,
@@ -171,7 +171,7 @@ export class Locator {
   resolveFrom(tree: AccessibilityTree): AccessibilityNode {
     const matches = this.matchesFrom(tree);
     if (matches.length !== 1) {
-      throw new LocatorResolutionError(buildStrictnessMessage(this.describe(), matches));
+      throw new LocatorResolutionError(buildStrictnessMessage(this.describe(), matches, tree.root));
     }
     const result = matches[0];
     if (!result) throw new LocatorResolutionError(`${this.describe()} found no element.`);
@@ -199,7 +199,7 @@ export class Locator {
       }
 
       if (segmentIndex < this.segments.length - 1 && matches.length !== 1) {
-        throw new LocatorResolutionError(buildStrictnessMessage(this.describe(), matches));
+        throw new LocatorResolutionError(buildStrictnessMessage(this.describe(), matches, tree.root));
       }
       roots = matches;
     }
@@ -244,10 +244,19 @@ const queryDescription = (query: LocatorQuery): string => {
   }
 };
 
-const buildStrictnessMessage = (locator: string, matches: AccessibilityNode[]): string => {
+const buildStrictnessMessage = (
+  locator: string,
+  matches: AccessibilityNode[],
+  root: AccessibilityNode
+): string => {
   if (matches.length === 0) return `${locator} found no matching accessible elements.`;
 
-  const candidates = matches.map((node, index) => `  ${index + 1}. ${nodeDescription(node)}`).join("\n");
+  const candidates = matches
+    .map((node, index) => {
+      const path = accessibilityPath(root, node);
+      return `  ${index + 1}. ${path ?? nodeDescription(node)}`;
+    })
+    .join("\n");
   return `${locator} expected one matching accessible element, found ${matches.length}:\n${candidates}\nRefine the query, scope it with findBy…, or select deliberately with first(), second(), or nth().`;
 };
 

@@ -119,3 +119,26 @@ export function nodeDescription(node: AccessibilityNode): string {
   if (node.value !== undefined) details.push(`value=${JSON.stringify(node.value)}`);
   return details.join(" ");
 }
+
+export function accessibilityPath(
+  root: AccessibilityNode,
+  target: AccessibilityNode
+): string | undefined {
+  const path: AccessibilityNode[] = [];
+
+  const visit = (node: AccessibilityNode): boolean => {
+    path.push(node);
+    if (node === target) return true;
+    if (node.children.some(visit)) return true;
+    path.pop();
+    return false;
+  };
+
+  return visit(root) ? path.map(pathSegment).join(" > ") : undefined;
+}
+
+const pathSegment = (node: AccessibilityNode): string => {
+  if (node.id) return `${node.role}#${node.id}`;
+  if (node.label) return `${node.role}[${JSON.stringify(node.label)}]`;
+  return node.role;
+};
