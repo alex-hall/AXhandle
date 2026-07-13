@@ -12,16 +12,42 @@ export interface AxeCommandRunner {
 }
 
 export class AxeCommandError extends Error {
+  readonly args: readonly string[];
+  readonly stderr: string;
+  readonly executable: string;
+
   constructor(
-    readonly args: readonly string[],
-    readonly stderr: string,
+    args: readonly string[],
+    stderr: string,
     cause?: unknown,
-    readonly executable = "axe"
+    executable = "axe"
   ) {
-    super(`AXe command failed: ${executable} ${args.join(" ")}\n${stderr}`.trim(), { cause });
+    const typedText = args[0] === "type" ? args[1] : undefined;
+    const safeArgs = redactTypeArgument(args, typedText);
+    const safeStderr = redactTypedText(stderr, typedText);
+
+    // A child-process error can include the complete command line. Preserve it
+    // for ordinary commands, but never retain it for text entry failures.
+    super(
+      `AXe command failed: ${executable} ${safeArgs.join(" ")}\n${safeStderr}`.trim(),
+      typedText === undefined ? { cause } : undefined
+    );
     this.name = "AxeCommandError";
+    this.args = safeArgs;
+    this.stderr = safeStderr;
+    this.executable = executable;
   }
 }
+
+const redactTypeArgument = (args: readonly string[], typedText: string | undefined): readonly string[] => {
+  if (typedText === undefined) return [...args];
+  return args.map((argument, index) => (index === 1 ? "<redacted>" : argument));
+};
+
+const redactTypedText = (value: string, typedText: string | undefined): string => {
+  if (typedText === undefined || typedText.length === 0) return value;
+  return value.replaceAll(typedText, "<redacted>");
+};
 
 /** A shell-free Node runner. Arguments are never interpolated into a shell. */
 export class NodeAxeCommandRunner implements AxeCommandRunner {

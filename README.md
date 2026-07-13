@@ -245,6 +245,10 @@ accessibility value (such as secure text entry), skip only the value check:
 await device.findByTestId("password").fill("correct-horse", { verify: false });
 ```
 
+If AXe text entry fails, the entered value is redacted from the public error,
+command log, and failure evidence. The command, simulator target, and AXe
+diagnostic remain available for debugging.
+
 ## Switches and checkboxes
 
 `check()` and `uncheck()` read the current accessibility state, tap only when

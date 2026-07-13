@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AxeCliDriver, NodeAxeCommandRunner } from "../src/index.js";
+import { AxeCliDriver, AxeCommandError, NodeAxeCommandRunner } from "../src/index.js";
 import type { AxeCommandRunner } from "../src/axe-cli-driver.js";
 
 class RecordingRunner implements AxeCommandRunner {
@@ -55,5 +55,21 @@ describe("AxeCliDriver", () => {
     expect(received).toBeInstanceOf(Error);
     expect((received as Error).message).toContain(binary);
     expect((received as Error).message).toContain("ENOENT");
+  });
+
+  it("redacts entered text from command errors and their public details", () => {
+    const enteredText = "test-only-secret";
+    const cause = new Error(`Command failed: axe type ${enteredText}`);
+    const error = new AxeCommandError(
+      ["type", enteredText, "--udid", "SIMULATOR-UDID"],
+      `AXe could not type ${enteredText}`,
+      cause
+    );
+
+    expect(error.args).toEqual(["type", "<redacted>", "--udid", "SIMULATOR-UDID"]);
+    expect(error.stderr).toBe("AXe could not type <redacted>");
+    expect(error.message).not.toContain(enteredText);
+    expect(error.message).toContain("axe type <redacted> --udid SIMULATOR-UDID");
+    expect(error.cause).toBeUndefined();
   });
 });
