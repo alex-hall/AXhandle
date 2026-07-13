@@ -25,7 +25,7 @@ track or a public fixture proves they are needed.
 | Multi-device core | Complete | Named device leases, direct lifecycle failure tests, documented two-simulator runbook, and a repeatable Alice-to-Bob React Native e2e flow. |
 | Simulator and system boundary | Complete | Shell-free optional Xcode simulator-control adapter plus a separate, explicitly unsupported-by-default biometric interface. |
 | Compatibility and public proof | Complete | AXe supported-version policy and validated matrix are recorded, with gated public SwiftUI native-control and React Native multi-device proofs. |
-| Release readiness | Awaiting maintainer decisions | Package contents are verified and consumer documentation, changelog, and release checklist are prepared; license, ownership, and publishing remain maintainer decisions. |
+| Release readiness | Awaiting maintainer decisions | Package contents are verified and consumer documentation, changelog, release checklist, and MIT license are prepared; ownership and publishing remain maintainer decisions. |
 
 ## Progress snapshot
 
@@ -209,9 +209,8 @@ shared state.
   Alice-to-Bob flow exercises two physical simulators.
 - [x] Add lifecycle tests for reset failures, test failures, and cleanup error
   preservation.
-- [ ] Add a license chosen by the maintainers. Consumer documentation,
-  examples, changelog, package-content verification, and a release checklist
-  are complete.
+- [x] Add the MIT license. Consumer documentation, examples, changelog,
+  package-content verification, and a release checklist are complete.
 - [ ] Decide publishing ownership, final package name, public repository
   metadata, and release automation before publishing anything.
 

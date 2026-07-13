@@ -17,7 +17,6 @@ or pushes anything.
 
 ## Publish gate — maintainer decisions required
 
-- Choose the license and add its full text as `LICENSE`.
 - Confirm npm organization/owner and whether `axe-typescript` is the final
   public package name.
 - Set the initial semantic version, repository URL, issue tracker, and package
