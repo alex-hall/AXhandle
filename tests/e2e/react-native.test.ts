@@ -6,18 +6,18 @@ import type { LocalRelay } from "../support/local-relay.js";
 
 expect.extend(axeMatchers);
 
-const udid = process.env.AXE_CONFORMANCE_UDID;
+const udid = process.env.AXE_E2E_UDID;
 const hasPairConfiguration =
-  process.env.AXE_CONFORMANCE_ALICE_UDID !== undefined ||
-  process.env.AXE_CONFORMANCE_BOB_UDID !== undefined;
+  process.env.AXE_E2E_ALICE_UDID !== undefined ||
+  process.env.AXE_E2E_BOB_UDID !== undefined;
 const enabled =
-  process.env.AXE_CONFORMANCE === "1" && udid !== undefined && !hasPairConfiguration;
+  process.env.AXE_E2E === "1" && udid !== undefined && !hasPairConfiguration;
 const returnToMainScreen = async (device: Device): Promise<void> => {
   const back = device.findByRole("button", { name: "Back" });
   if (await back.count() > 0) await back.click();
 };
 
-describe.skipIf(!enabled)("React Native AXe conformance", () => {
+describe.skipIf(!enabled)("React Native AXe e2e", () => {
   let relay: LocalRelay;
   beforeAll(async () => {
     relay = await startLocalRelay();

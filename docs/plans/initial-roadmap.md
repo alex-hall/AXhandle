@@ -20,7 +20,7 @@ milestone changes state.
 | Locator model | In progress | Strict, scoped `findBy…` locators and ordinal selection work; richer query types are pending. |
 | Vitest integration | In progress | Typed device fixture and async matchers work; artifact reporting is pending. |
 | Fixture-based testing | In progress | Versioned synthetic JSON fixtures plus provenance-tagged React Native and SwiftUI captures work; broader corpus is pending. |
-| Real-simulator conformance | In progress | Public SwiftUI and React Native sample apps share a small control contract; opt-in React Native cases validate both a single app and a real Alice-to-Bob flow across two simulators. |
+| Real-simulator end-to-end coverage | In progress | Public SwiftUI and React Native sample apps share a small control contract; opt-in React Native cases validate both a single app and a real Alice-to-Bob flow across two simulators. |
 
 ## Design decisions already made
 
@@ -56,16 +56,17 @@ Status: complete.
 
 ## Milestone 1 — failure evidence and matcher completeness
 
-Status: next.
+Status: in progress.
 
 Goal: make failures actionable without requiring a simulator expert to inspect
 raw AXe output manually.
 
-- [ ] Define public artifact types: command log, normalized tree, raw tree,
-  screenshot, and optional video.
-- [ ] Add a consumer-provided artifact sink; do not impose a CI vendor or UI.
-- [ ] Capture configured evidence when a Vitest test fails while preserving the
-  original assertion failure if cleanup also fails.
+- [x] Define public artifact types for command logs, normalized/raw trees, and
+  screenshots. Video remains intentionally deferred.
+- [x] Add a consumer-provided artifact sink; do not impose a CI vendor or UI.
+- [x] Capture configured evidence when a Vitest test fails while preserving the
+  original assertion failure if cleanup also fails. Broader reset/release
+  failure coverage remains in the multi-device lifecycle milestone.
 - [x] Add matcher coverage for hidden/visible, enabled/disabled, text, value,
   and count including `.not` semantics.
 - [x] Improve strict-locator errors with scoped accessibility paths and useful
@@ -134,7 +135,7 @@ Acceptance criteria:
   response each produce distinct actionable errors.
 - Core users can bring their own simulator lifecycle implementation.
 
-## Milestone 4 — real-simulator conformance suite
+## Milestone 4 — real-simulator end-to-end suite
 
 Status: planned.
 
@@ -149,12 +150,12 @@ Goal: prove the fixture model against a small, wholly public test application.
 - [ ] Capture a provenance-tagged corpus from UIKit, SwiftUI, and nested
   accessibility containers. React Native and SwiftUI initial-state captures are
   committed; UIKit and deeper nesting remain.
-- [ ] Add opt-in conformance tests for inspect, nested locator resolution, tap,
+- [ ] Add opt-in end-to-end tests for inspect, nested locator resolution, tap,
   type, fill, switch/toggle, screenshot, and orientation. Semantic role/name
   resolution, fill, tap, navigation, reset hooks, and an Alice-to-Bob
   two-simulator message delivery are covered for React Native; descendant
   resolution remains blocked by the flattened AXe tree.
-- [x] Run conformance tests only when explicit environment variables provide a
+- [x] Run end-to-end tests only when explicit environment variables provide a
   supported AXe binary and simulator UDID.
 - [ ] Record the AXe, Xcode, runtime, device, and orientation for every captured
   fixture. The React Native and SwiftUI captures record all five; future
@@ -195,7 +196,7 @@ Acceptance criteria:
 | Risk | Why it matters | Mitigation |
 | --- | --- | --- |
 | Accessibility tree flattening | AXe currently flattens the public SwiftUI and React Native sample’s visual `composer` region into sibling elements, so descendant scoping cannot work there. | Keep ordinary scoping hierarchy-strict; consider an explicitly named, frame-based visual-region feature only after defining its safety contract. |
-| AXe uses private simulator infrastructure | Xcode/runtime changes can alter behavior. | Pin compatibility, add doctor checks, and keep gated conformance tests. |
+| AXe uses private simulator infrastructure | Xcode/runtime changes can alter behavior. | Pin compatibility, add doctor checks, and keep gated end-to-end tests. |
 | Native/system UI | Face ID, permissions, and system dialogs are not ordinary application accessibility targets. | Use optional Xcode/simulator-control integrations with explicit support boundaries. |
 | Over-eager abstraction | Premature caching, batching, and broad selectors can make failures opaque. | Start with fresh tree reads and fixture-backed evidence; optimize only from measurements. |
 | State leakage | Reused simulators carry persisted app and OS state. | Keep reset consumer-owned, always run lifecycle cleanup, and add explicit device-provider contracts. |
@@ -207,5 +208,5 @@ Acceptance criteria:
    behavior.
 3. Implement only the next interactions justified by that corpus.
 4. Add `doctor` and optional simulator-control boundaries.
-5. Build and gate the real-simulator conformance suite against the integration
+5. Build and gate the real-simulator end-to-end suite against the integration
    sample app.

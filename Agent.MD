@@ -25,7 +25,7 @@ it may be published.
 - Prefer documented, versioned interfaces. Keep the AXe CLI isolated behind a
   typed adapter so upstream changes are contained.
 - Tests must run without a simulator by default, using synthetic or
-  purpose-built JSON fixtures. Simulator-backed conformance tests must be
+  purpose-built JSON fixtures. Simulator-backed end-to-end tests must be
   explicitly opt-in.
 
 ## Before contributing

@@ -27,7 +27,7 @@ This is an initial scaffold. The first vertical slice includes:
 - async Vitest matchers.
 
 The package deliberately has no simulator requirement for its default test
-suite. Real AXe/simulator conformance tests will be opt-in.
+suite. Real AXe/simulator end-to-end tests are opt-in.
 
 ## Public integration samples
 
@@ -38,11 +38,11 @@ composer, button, switch, and navigation control contract.
 
 The React Native sample's captured initial AXe tree is a regular fixture, so
 its locator behavior is covered by the default simulator-free suite. Live
-conformance is separately gated. After building, installing, and launching the
+end-to-end coverage is separately gated. After building, installing, and launching the
 sample app on a booted simulator, run:
 
 ```sh
-AXE_CONFORMANCE=1 AXE_CONFORMANCE_UDID=<udid> npm run test:conformance
+AXE_E2E=1 AXE_E2E_UDID=<udid> npm run test:e2e
 ```
 
 The live test waits for an accessibility condition rather than sleeping. It
@@ -51,26 +51,26 @@ the library itself intentionally does not own app launch or simulator reset.
 
 The flagship peer flow uses two separately booted simulators, each with the
 same public React Native sample installed and launched. Its local relay is
-started and reset by the conformance suite; it has no external service or
+started and reset by the end-to-end suite; it has no external service or
 credentials:
 
 ```sh
-AXE_CONFORMANCE=1 \
-AXE_CONFORMANCE_ALICE_UDID=<alice-udid> \
-AXE_CONFORMANCE_BOB_UDID=<bob-udid> \
-npm run test:conformance
+AXE_E2E=1 \
+AXE_E2E_ALICE_UDID=<alice-udid> \
+AXE_E2E_BOB_UDID=<bob-udid> \
+npm run test:e2e
 ```
 
 The test selects Alice and Bob in their respective app instances, sends an
 actual message from Alice, and waits for Bob's accessible incoming-message
-state. Do not also set `AXE_CONFORMANCE_UDID` for this pair mode.
+state. Do not also set `AXE_E2E_UDID` for this pair mode.
 
 ## Fixtures
 
 Fixture tests use a versioned JSON envelope. Its `tree` is the untouched value
 from `axe describe-ui`; metadata records where a captured fixture came from.
 This allows parser and locator behavior to be tested without a booted
-simulator, while preserving provenance when conformance fixtures are added.
+simulator, while preserving provenance when end-to-end fixtures are added.
 
 `tests/fixtures/axe-fixture.schema.json` documents the envelope. Only synthetic
 fixtures or captures from this repository's own purpose-built sample app belong

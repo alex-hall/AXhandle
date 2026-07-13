@@ -6,12 +6,12 @@ import type { LocalRelay } from "../support/local-relay.js";
 
 expect.extend(axeMatchers);
 
-const aliceUdid = process.env.AXE_CONFORMANCE_ALICE_UDID;
-const bobUdid = process.env.AXE_CONFORMANCE_BOB_UDID;
+const aliceUdid = process.env.AXE_E2E_ALICE_UDID;
+const bobUdid = process.env.AXE_E2E_BOB_UDID;
 const enabled =
-  process.env.AXE_CONFORMANCE === "1" && aliceUdid !== undefined && bobUdid !== undefined;
+  process.env.AXE_E2E === "1" && aliceUdid !== undefined && bobUdid !== undefined;
 
-describe.skipIf(!enabled)("React Native multi-device AXe conformance", () => {
+describe.skipIf(!enabled)("React Native multi-device AXe e2e", () => {
   let relay: LocalRelay;
   beforeAll(async () => {
     relay = await startLocalRelay();

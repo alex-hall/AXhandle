@@ -10,7 +10,7 @@
       "env": ["SIMULATOR_UDID"],
       "dependsOn": ["build"]
     },
-    "test:conformance": {
+    "test:e2e": {
       "cache": false,
       "dependsOn": ["build"]
     }

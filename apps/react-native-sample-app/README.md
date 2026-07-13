@@ -1,7 +1,7 @@
 # React Native integration sample app
 
 This public app is a deliberately small accessibility surface for the AXe
-TypeScript live conformance suite. It mirrors the SwiftUI integration sample’s
+TypeScript live end-to-end suite. It mirrors the SwiftUI integration sample’s
 composer, input, button, toggle, and details-flow contract while exercising
 React Native’s iOS accessibility bridge.
 
@@ -28,8 +28,8 @@ release build on a booted simulator, provide its UDID:
 SIMULATOR_UDID=<udid> npm run react-native-app:install
 ```
 
-For the public multi-device conformance flow, install and launch the same
-release build on two booted simulators. The root `test:conformance` command
+For the public multi-device end-to-end flow, install and launch the same
+release build on two booted simulators. The root `test:e2e` command
 starts a host-only relay, selects Alice and Bob in the separate app instances,
 and verifies delivery with ordinary AXe accessibility assertions. No external
 network or credentials are used.

@@ -17,7 +17,7 @@ interface RelayMessage {
   body: string;
 }
 
-// The public conformance relay runs on the simulator host. This deliberately
+// The public end-to-end relay runs on the simulator host. This deliberately
 // contains no application-specific endpoint or credentials.
 const relayUrl = 'http://127.0.0.1:4100';
 

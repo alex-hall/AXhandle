@@ -17,5 +17,5 @@ The public integration captures currently exercise these roles:
 | `group` | `findByTestId("composer")` | A visual group is not guaranteed to retain descendant relationships in AXe. |
 
 Roles are exact, case-normalized strings. If AXe changes its role descriptions,
-the captured public fixtures and opt-in conformance suite should reveal that
+the captured public fixtures and opt-in end-to-end suite should reveal that
 before an application suite silently changes behavior.
