@@ -25,7 +25,7 @@ track or a public fixture proves they are needed.
 | Multi-device core | Complete | Named device leases, direct lifecycle failure tests, documented two-simulator runbook, and a repeatable Alice-to-Bob React Native e2e flow. |
 | Simulator and system boundary | Complete | Shell-free optional Xcode simulator-control adapter plus a separate, explicitly unsupported-by-default biometric interface. |
 | Compatibility and public proof | Complete | AXe supported-version policy and validated matrix are recorded, with gated public SwiftUI native-control and React Native multi-device proofs. |
-| Release readiness | Queued | API docs, examples, license/publishing decisions, changelog, and release automation. |
+| Release readiness | In progress | Package contents are verified and consumer documentation/changelog are being prepared; license, ownership, and publishing remain maintainer decisions. |
 
 ## Progress snapshot
 

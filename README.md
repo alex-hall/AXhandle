@@ -9,6 +9,20 @@ assertions, and Vitest integration.
 
 The current work plan is in `docs/plans/initial-roadmap.md`.
 
+## Getting started
+
+AXe TypeScript runs on macOS against the iOS Simulator. Install a supported
+AXe CLI version on `PATH`, then add this package and Vitest to the consuming
+project:
+
+```sh
+npm install --save-dev axe-typescript vitest
+```
+
+Register the matchers and create a project-specific test fixture as shown in
+[Vitest setup](#vitest-setup). The fixture is where your project supplies a
+simulator UDID and owns app-specific provisioning and reset behavior.
+
 ```ts
 const thread = device.findByTestId("thread");
 
@@ -111,10 +125,10 @@ import { test } from "./support/axe.js";
 
 test("sends a message", async ({ devices }) => {
   const device = devices.primary;
-  const composer = device.findByTestId("composer");
+  const message = device.findByTestId("message-input");
 
-await composer.findByTestId("message-input").type("Hello");
-  await composer.findByRole("button", { name: "Send" }).click();
+  await message.type("Hello");
+  await device.findByRole("button", { name: "Send" }).click();
   await expect(device.findByText("Delivered")).toBeVisible();
 });
 ```
@@ -138,6 +152,18 @@ or when it provides a useful stable scope. It is intentionally available, but
 the library does not require every interaction to be driven by opaque IDs.
 The supported role contract and known framework differences are documented in
 `docs/accessibility-roles.md`.
+
+When AXe reports a genuine accessibility hierarchy, locators can scope further
+searches without a new abstraction:
+
+```ts
+const body = device.findByTestId("body");
+await body.findByRole("button", { name: "Send" }).click();
+```
+
+Scope is hierarchy-strict. Some visual containers, including the public
+SwiftUI and React Native sample composer, are flattened by AXe into sibling
+elements; a visual container is not a valid scope in that shape.
 
 ## Failure evidence
 
