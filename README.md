@@ -7,6 +7,8 @@ This project is intentionally app-agnostic. It wraps AXe behind typed
 primitives, then provides chainable accessibility locators, retrying
 assertions, and Vitest integration.
 
+The current work plan is in `docs/plans/initial-roadmap.md`.
+
 ```ts
 const thread = device.findByTestId("thread");
 
