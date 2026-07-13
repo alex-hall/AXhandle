@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://axe-typescript.dev/schemas/axe-fixture-v1.json",
+  "title": "AXe TypeScript fixture v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["formatVersion", "metadata", "tree"],
+  "properties": {
+    "formatVersion": { "const": 1 },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source"],
+      "properties": {
+        "source": { "enum": ["synthetic", "captured"] },
+        "axeVersion": { "type": "string" },
+        "xcodeVersion": { "type": "string" },
+        "runtime": { "type": "string" },
+        "device": { "type": "string" },
+        "orientation": { "type": "string" }
+      }
+    },
+    "tree": {
+      "description": "Verbatim JSON emitted by axe describe-ui.",
+      "type": ["object", "array"]
+    }
+  }
+}

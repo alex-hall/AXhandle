@@ -27,6 +27,17 @@ This is an initial scaffold. The first vertical slice includes:
 The package deliberately has no simulator requirement for its default test
 suite. Real AXe/simulator conformance tests will be opt-in.
 
+## Fixtures
+
+Fixture tests use a versioned JSON envelope. Its `tree` is the untouched value
+from `axe describe-ui`; metadata records where a captured fixture came from.
+This allows parser and locator behavior to be tested without a booted
+simulator, while preserving provenance when conformance fixtures are added.
+
+`tests/fixtures/axe-fixture.schema.json` documents the envelope. Only synthetic
+fixtures or captures from this repository's own purpose-built sample app belong
+in the project.
+
 ## Vitest setup
 
 Install the matchers once in a Vitest setup file, then export a project-specific

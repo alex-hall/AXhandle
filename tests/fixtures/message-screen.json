@@ -1,4 +1,10 @@
 {
+  "formatVersion": 1,
+  "metadata": {
+    "source": "synthetic",
+    "axeVersion": "synthetic"
+  },
+  "tree": {
   "AXRole": "Application",
   "AXChildren": [
     {
@@ -42,4 +48,5 @@
       ]
     }
   ]
+  }
 }

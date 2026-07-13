@@ -1,5 +1,32 @@
 import type { AxeDriver, AxeTapTarget } from "./types.js";
 
+export interface AxeFixtureMetadata {
+  /** `synthetic` fixtures are hand-authored; `captured` trees come from AXe. */
+  source: "synthetic" | "captured";
+  axeVersion?: string;
+  xcodeVersion?: string;
+  runtime?: string;
+  device?: string;
+  orientation?: string;
+}
+
+/**
+ * A versioned envelope around an otherwise untouched AXe `describe-ui` value.
+ * The `tree` member must remain raw so fixtures keep exercising the normalizer.
+ */
+export interface AxeFixture {
+  formatVersion: 1;
+  metadata: AxeFixtureMetadata;
+  tree: unknown;
+}
+
+export function fixtureTree(fixture: AxeFixture): unknown {
+  if (fixture.formatVersion !== 1 || !fixture.metadata || fixture.tree === undefined) {
+    throw new TypeError("Expected an AXe fixture envelope at format version 1.");
+  }
+  return fixture.tree;
+}
+
 export type FixtureCall =
   | { kind: "describeUi" }
   | { kind: "tap"; target: AxeTapTarget }

@@ -2,13 +2,18 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { Device, LocatorResolutionError } from "../src/index.js";
-import { FixtureAxeDriver } from "../src/testing.js";
+import { FixtureAxeDriver, fixtureTree } from "../src/testing.js";
 import { axeMatchers } from "../src/vitest.js";
 
 expect.extend(axeMatchers);
 
 const fixturePath = fileURLToPath(new URL("./fixtures/message-screen.json", import.meta.url));
-const messageScreen = JSON.parse(await readFile(fixturePath, "utf8")) as unknown;
+const messageFixture = JSON.parse(await readFile(fixturePath, "utf8")) as {
+  formatVersion: 1;
+  metadata: { source: "synthetic" };
+  tree: unknown;
+};
+const messageScreen = fixtureTree(messageFixture);
 
 describe("Device locators", () => {
   it("scopes findBy queries to an accessibility fragment", async () => {
