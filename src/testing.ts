@@ -20,12 +20,52 @@ export interface AxeFixture {
   tree: unknown;
 }
 
-export function fixtureTree(fixture: AxeFixture): unknown {
-  if (fixture.formatVersion !== 1 || !fixture.metadata || fixture.tree === undefined) {
+type JsonRecord = Record<string, unknown>;
+
+const isRecord = (value: unknown): value is JsonRecord =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const fixtureKeys = new Set(["formatVersion", "metadata", "tree"]);
+const metadataKeys = new Set([
+  "source",
+  "axeVersion",
+  "xcodeVersion",
+  "runtime",
+  "device",
+  "orientation"
+]);
+
+/**
+ * Validates the committed fixture-v1 contract at runtime. The JSON Schema is
+ * documentation for tooling; this keeps malformed fixture input out of tests.
+ */
+export function fixtureTree(fixture: unknown): unknown {
+  if (!isRecord(fixture) || hasUnexpectedKeys(fixture, fixtureKeys)) {
+    throw new TypeError("Expected an AXe fixture envelope with only formatVersion, metadata, and tree.");
+  }
+  if (fixture.formatVersion !== 1) {
     throw new TypeError("Expected an AXe fixture envelope at format version 1.");
+  }
+  if (!isFixtureMetadata(fixture.metadata)) {
+    throw new TypeError("Expected AXe fixture metadata with source 'synthetic' or 'captured'.");
+  }
+  if (!isRecord(fixture.tree) && !Array.isArray(fixture.tree)) {
+    throw new TypeError("Expected an AXe fixture tree object or array.");
   }
   return fixture.tree;
 }
+
+const hasUnexpectedKeys = (record: JsonRecord, allowed: ReadonlySet<string>): boolean =>
+  Object.keys(record).some((key) => !allowed.has(key));
+
+const isFixtureMetadata = (value: unknown): value is AxeFixtureMetadata => {
+  if (!isRecord(value) || hasUnexpectedKeys(value, metadataKeys)) return false;
+  if (value.source !== "synthetic" && value.source !== "captured") return false;
+
+  return ["axeVersion", "xcodeVersion", "runtime", "device", "orientation"].every(
+    (key) => value[key] === undefined || typeof value[key] === "string"
+  );
+};
 
 export type FixtureCall =
   | { kind: "describeUi" }
