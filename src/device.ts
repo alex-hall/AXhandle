@@ -198,7 +198,18 @@ export class Device {
     while (true) {
       const tree = normalizeAxeTree(await this.driver.describeUi());
       try {
-        return { tree, node: locator.resolveFrom(tree) };
+        const node = locator.resolveFrom(tree);
+        if (!node.visible) {
+          throw new LocatorResolutionError(
+            `${locator.describe()} resolved to ${node.role}, but it is not visible.`
+          );
+        }
+        if (node.enabled === false) {
+          throw new LocatorResolutionError(
+            `${locator.describe()} resolved to ${node.role}, but it is disabled.`
+          );
+        }
+        return { tree, node };
       } catch (error) {
         if (!(error instanceof LocatorResolutionError)) throw error;
         lastError = error;

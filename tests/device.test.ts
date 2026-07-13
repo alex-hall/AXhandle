@@ -262,6 +262,55 @@ describe("Device locators", () => {
     expect(clock.elapsed()).toBe(25);
   });
 
+  it("waits for a visible and enabled action target before tapping", async () => {
+    const unavailable = {
+      AXRole: "Application",
+      AXChildren: [
+        {
+          AXRole: "Button",
+          AXUniqueId: "send",
+          AXLabel: "Send",
+          AXEnabled: false,
+          AXVisible: false,
+          frame: { x: 16, y: 16, width: 100, height: 44 }
+        }
+      ]
+    };
+    const available = structuredClone(unavailable) as typeof unavailable;
+    available.AXChildren[0]!.AXEnabled = true;
+    available.AXChildren[0]!.AXVisible = true;
+    const driver = new SequenceDriver([unavailable, available]);
+    const clock = fakeClock();
+    const device = new Device("primary", driver, { clock });
+
+    await device.findByTestId("send").click({ timeout: 100, interval: 25 });
+
+    expect(clock.elapsed()).toBe(25);
+  });
+
+  it("does not tap an action target that remains disabled", async () => {
+    const disabled = {
+      AXRole: "Application",
+      AXChildren: [
+        {
+          AXRole: "Button",
+          AXUniqueId: "send",
+          AXLabel: "Send",
+          AXEnabled: false,
+          frame: { x: 16, y: 16, width: 100, height: 44 }
+        }
+      ]
+    };
+    const driver = new FixtureAxeDriver(disabled);
+    const clock = fakeClock();
+    const device = new Device("primary", driver, { clock });
+
+    await expect(device.findByTestId("send").click({ timeout: 100, interval: 25 })).rejects.toThrow(
+      "but it is disabled"
+    );
+    expect(driver.calls.filter((call) => call.kind === "tap")).toHaveLength(0);
+  });
+
   it("records an unsupported screenshot attempt as a failed command", async () => {
     const device = new Device("primary", new FixtureAxeDriver(messageScreen));
 
