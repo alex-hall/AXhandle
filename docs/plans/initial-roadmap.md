@@ -10,6 +10,23 @@ supporting multiple independent simulators.
 This is a living plan. Update the checkboxes and the progress snapshot when a
 milestone changes state.
 
+## Execution rule
+
+The roadmap is not a flat implementation queue. Only one closure track may be
+active at a time; a track is complete only when its acceptance tests,
+documentation, and small commits are in place. New interactions, selectors,
+and framework samples remain parked unless they directly close the active
+track or a public fixture proves they are needed.
+
+### Closure tracks
+
+| Track | Status | Definition of done |
+| --- | --- | --- |
+| Multi-device core | Complete | Named device leases, direct lifecycle failure tests, documented two-simulator runbook, and a repeatable Alice-to-Bob React Native e2e flow. |
+| Simulator and system boundary | Next | Injected simulator-control and biometric/system-event interfaces with fixture coverage and explicit support limits. |
+| Compatibility and public proof | Queued | Supported-version policy, compatibility matrix, and only the SwiftUI/UIKit e2e coverage justified by public captures. |
+| Release readiness | Queued | API docs, examples, license/publishing decisions, changelog, and release automation. |
+
 ## Progress snapshot
 
 | Area | Status | Notes |
@@ -56,7 +73,8 @@ Status: complete.
 
 ## Milestone 1 — failure evidence and matcher completeness
 
-Status: in progress.
+Status: complete for the portable core. Reporter/UI integration remains a
+consumer concern and is intentionally deferred.
 
 Goal: make failures actionable without requiring a simulator expert to inspect
 raw AXe output manually.
@@ -78,8 +96,8 @@ Acceptance criteria:
 
 - A fixture test can intentionally fail and produce a structured evidence
   bundle without obscuring the original error.
-- The default reporter output identifies the locator, expected condition,
-  observed candidates, and evidence locations.
+- Consumers can route structured evidence to their own reporter or CI sink;
+  the portable core does not impose a reporter UI.
 
 ## Milestone 2 — locator and interaction surface
 
@@ -177,7 +195,7 @@ shared state.
 - [x] Ensure each device serializes its own commands while separate devices can
   run concurrently through ordinary `Promise.all`; a gated React Native
   Alice-to-Bob flow exercises two physical simulators.
-- [ ] Add lifecycle tests for reset failures, test failures, and cleanup error
+- [x] Add lifecycle tests for reset failures, test failures, and cleanup error
   preservation.
 - [ ] Add package metadata, API documentation, examples, changelog, and a
   license chosen by the maintainers.

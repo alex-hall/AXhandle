@@ -196,6 +196,11 @@ test("synchronizes two peers", async ({ devices }) => {
 `Device` serializes commands only within itself. Separate devices remain normal
 independent promises, so the provider determines allocation and parallelism.
 
+Lifecycle order is deterministic: `beforeTest`, test body, failure evidence
+(when configured), `reset`, then provider `release`. Reset and release always
+run. A primary test failure remains primary; later cleanup failures are
+available to custom integrations with `getAxeCleanupFailures(error)`.
+
 ## Text input
 
 `type()` appends HID keystrokes to the focused field. `fill()` replaces text by

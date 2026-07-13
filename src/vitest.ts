@@ -104,7 +104,8 @@ export const axeMatchers = {
 };
 
 type MaybePromise<T> = T | Promise<T>;
-type DeviceSet = Record<string, Device>;
+export type AxeDeviceSet = Record<string, Device>;
+type DeviceSet = AxeDeviceSet;
 
 export interface AxeTestLifecycle<TDevices extends DeviceSet> {
   devices: TDevices;
@@ -144,6 +145,101 @@ export interface VitestEvidenceOptions extends CaptureDeviceEvidenceOptions {
   capture?: "failure" | "always";
 }
 
+export type AxeCleanupPhase = "evidence" | "reset" | "release";
+
+export interface AxeCleanupFailure {
+  phase: AxeCleanupPhase;
+  error: unknown;
+}
+
+const cleanupFailuresKey = Symbol("axe-typescript.cleanup-failures");
+
+/** Returns cleanup failures attached to the primary lifecycle error, if any. */
+export const getAxeCleanupFailures = (error: unknown): readonly AxeCleanupFailure[] => {
+  if ((typeof error !== "object" && typeof error !== "function") || error === null) {
+    return [];
+  }
+  const failures = (error as { [cleanupFailuresKey]?: unknown })[cleanupFailuresKey];
+  return Array.isArray(failures) ? failures : [];
+};
+
+const attachCleanupFailures = (
+  error: unknown,
+  failures: readonly AxeCleanupFailure[]
+): void => {
+  if ((typeof error !== "object" && typeof error !== "function") || error === null) return;
+  Object.defineProperty(error, cleanupFailuresKey, {
+    configurable: true,
+    value: failures.slice()
+  });
+};
+
+/**
+ * Runs the lifecycle that backs the Vitest fixture. Exported for custom
+ * integrations and direct failure-path tests; normal suites use createAxeTest.
+ */
+export async function runAxeTestLifecycle<TDevices extends DeviceSet, TResult>(
+  options: CreateAxeTestOptions<TDevices>,
+  body: (devices: TDevices) => MaybePromise<TResult>
+): Promise<TResult> {
+  const provider = "deviceProvider" in options ? options.deviceProvider : undefined;
+  const createDevices = provider ? () => provider.allocate() : options.createDevices;
+  if (!createDevices) {
+    throw new TypeError("createAxeTest requires either createDevices or deviceProvider.");
+  }
+
+  const devices = await createDevices();
+  const context = { devices };
+  const cleanupFailures: AxeCleanupFailure[] = [];
+  let hasPrimaryError = false;
+  let primaryError: unknown;
+  let result: TResult;
+
+  const runCleanup = async (phase: AxeCleanupPhase, operation: () => Promise<void>) => {
+    try {
+      await operation();
+    } catch (error) {
+      cleanupFailures.push({ phase, error });
+    }
+  };
+
+  try {
+    await options.beforeTest?.(context);
+    result = await body(devices);
+  } catch (error) {
+    hasPrimaryError = true;
+    primaryError = error;
+    throw error;
+  } finally {
+    const evidenceOptions = options.evidence;
+    const shouldCapture =
+      evidenceOptions && (evidenceOptions.capture === "always" || hasPrimaryError);
+
+    if (shouldCapture) {
+      await runCleanup("evidence", async () => {
+        for (const device of Object.values(devices)) {
+          await captureDeviceEvidence(device, evidenceOptions.sink, evidenceOptions);
+        }
+      });
+    }
+
+    await runCleanup("reset", async () => options.reset?.(context));
+    await runCleanup("release", async () => provider?.release?.(devices));
+
+    if (hasPrimaryError) {
+      if (cleanupFailures.length > 0) attachCleanupFailures(primaryError, cleanupFailures);
+    } else if (cleanupFailures.length > 0) {
+      const [firstFailure] = cleanupFailures;
+      if (firstFailure) {
+        attachCleanupFailures(firstFailure.error, cleanupFailures);
+        throw firstFailure.error;
+      }
+    }
+  }
+
+  return result!;
+}
+
 /**
  * Returns a regular Vitest test function extended with a typed `devices`
  * fixture. The caller still owns simulator allocation and application reset.
@@ -151,58 +247,8 @@ export interface VitestEvidenceOptions extends CaptureDeviceEvidenceOptions {
 export function createAxeTest<TDevices extends DeviceSet>(
   options: CreateAxeTestOptions<TDevices>
 ) {
-  const provider = "deviceProvider" in options ? options.deviceProvider : undefined;
-  const createDevices = provider ? () => provider.allocate() : options.createDevices;
-  if (!createDevices) {
-    throw new TypeError("createAxeTest requires either createDevices or deviceProvider.");
-  }
-
   return baseTest.extend<{ devices: TDevices }>({
-    devices: async ({}, use) => {
-      const devices = await createDevices();
-      const context = { devices };
-      let primaryError: unknown;
-      let deferredError: unknown;
-
-      try {
-        await options.beforeTest?.(context);
-        await use(devices);
-      } catch (error) {
-        primaryError = error;
-        throw error;
-      } finally {
-        const evidenceOptions = options.evidence;
-        const shouldCapture =
-          evidenceOptions &&
-          (evidenceOptions.capture === "always" || primaryError !== undefined);
-
-        if (shouldCapture) {
-          try {
-            for (const device of Object.values(devices)) {
-              await captureDeviceEvidence(device, evidenceOptions.sink, evidenceOptions);
-            }
-          } catch (error) {
-            deferredError ??= error;
-          }
-        }
-
-        try {
-          await options.reset?.(context);
-        } catch (error) {
-          deferredError ??= error;
-        }
-
-        try {
-          await provider?.release?.(devices);
-        } catch (error) {
-          deferredError ??= error;
-        }
-
-        if (primaryError === undefined && deferredError !== undefined) {
-          throw deferredError;
-        }
-      }
-    }
+    devices: async ({}, use) => runAxeTestLifecycle(options, use)
   });
 }
 
