@@ -16,7 +16,7 @@ milestone changes state.
 | --- | --- | --- |
 | Project safety and public boundaries | Complete | `Agent.MD` prohibits private fixtures and app information. |
 | TypeScript package scaffold | Complete | Node 24, TypeScript, Vitest, build, and typecheck are configured. |
-| AXe CLI boundary | In progress | `describe-ui`, tap, type, key-combo, and screenshot are typed; version checks and remaining primitives are pending. |
+| AXe CLI boundary | In progress | `describe-ui`, tap, type, key-combo, screenshot, and a read-only diagnostic preflight are typed; supported-version policy and remaining primitives are pending. |
 | Locator model | In progress | Strict, scoped `findBy…` locators and ordinal selection work; richer query types are pending. |
 | Vitest integration | In progress | Typed device fixture and async matchers work; artifact reporting is pending. |
 | Fixture-based testing | In progress | Versioned synthetic JSON fixtures plus provenance-tagged React Native and SwiftUI captures work; broader corpus is pending. |
@@ -115,8 +115,9 @@ Status: planned.
 Goal: make environmental failures legible and keep Xcode-specific concerns out
 of the portable core.
 
-- [ ] Add a `doctor` capability that checks the configured AXe binary, supported
-  version range, booted simulator, accessibility-tree read, and screenshot path.
+- [x] Add a `doctor` capability that checks the configured AXe binary and
+  version, booted simulator, accessibility-tree read, and optional screenshot
+  path. A supported-version policy remains to be chosen.
 - [ ] Pin and document the supported AXe/Xcode compatibility matrix.
 - [ ] Define an optional simulator-control integration boundary for app launch,
   installation, termination, erase/reset, and permission setup.

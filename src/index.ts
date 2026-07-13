@@ -14,6 +14,14 @@ export type {
   DeviceTimeouts,
   UiSnapshot
 } from "./device.js";
+export { diagnoseAxe } from "./doctor.js";
+export type {
+  AxeDoctorCheck,
+  AxeDoctorCheckName,
+  AxeDoctorCheckStatus,
+  AxeDoctorOptions,
+  AxeDoctorResult
+} from "./doctor.js";
 export { Locator, LocatorResolutionError, LocatorTimeoutError } from "./locator.js";
 export { normalizeAxeNode, normalizeAxeTree } from "./tree.js";
 export type {

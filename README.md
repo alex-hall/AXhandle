@@ -185,6 +185,31 @@ await expect(device.findByText("Delivered"))
 Prefer a visible condition or assertion over an arbitrary delay. The public API
 intentionally has no manual sleep operation.
 
+## Environment diagnostics
+
+`diagnoseAxe` is a read-only preflight for a configured simulator. It checks
+the AXe binary and version, confirms that AXe reports the requested simulator
+as booted, reads and validates the accessibility tree, and can optionally
+exercise screenshot capture. It does not boot a simulator or launch, terminate,
+or reset an app.
+
+```ts
+import { diagnoseAxe } from "axe-typescript";
+
+const report = await diagnoseAxe({
+  udid: process.env.PRIMARY_SIMULATOR_UDID!,
+  screenshotPath: "artifacts/doctor.png" // optional
+});
+
+if (!report.healthy) {
+  throw new Error(report.checks.map((check) => check.message).join("\n"));
+}
+```
+
+The result retains every individual check, so an unavailable AXe binary, an
+unbooted simulator, malformed UI response, and screenshot failure remain
+distinct and actionable.
+
 ## Safety
 
 This is a public open-source project. Do not add private application code,
