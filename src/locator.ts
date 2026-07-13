@@ -101,6 +101,10 @@ export class Locator {
     return this.device.inspect(this);
   }
 
+  async count(): Promise<number> {
+    return this.device.count(this);
+  }
+
   async waitForVisible(options?: WaitOptions): Promise<AccessibilityNode> {
     return this.waitFor((node) => node.visible, options);
   }
@@ -134,11 +138,51 @@ export class Locator {
     }
   }
 
+  async waitForCount(expected: number, options: WaitOptions = {}): Promise<number> {
+    return this.waitForCountWhere((actual) => actual === expected, options, expected);
+  }
+
+  /** @internal Shared polling primitive for count-based matchers. */
+  async waitForCountWhere(
+    predicate: (actual: number) => boolean,
+    options: WaitOptions = {},
+    expected?: number
+  ): Promise<number> {
+    const timeout = options.timeout ?? this.device.timeouts.assertion;
+    const interval = options.interval ?? this.device.timeouts.interval;
+    const deadline = this.device.clock.now() + timeout;
+    let actual = -1;
+
+    while (true) {
+      actual = await this.count();
+      if (predicate(actual)) return actual;
+
+      if (this.device.clock.now() >= deadline) {
+        throw new LocatorTimeoutError(
+          `${this.describe()} had ${actual} ${pluralize("match", actual)}${expected === undefined ? "" : ` instead of ${expected}`} within ${timeout}ms.`
+        );
+      }
+
+      await this.device.clock.sleep(interval);
+    }
+  }
+
   /** @internal Resolves this deferred query against one fresh tree. */
   resolveFrom(tree: AccessibilityTree): AccessibilityNode {
+    const matches = this.matchesFrom(tree);
+    if (matches.length !== 1) {
+      throw new LocatorResolutionError(buildStrictnessMessage(this.describe(), matches));
+    }
+    const result = matches[0];
+    if (!result) throw new LocatorResolutionError(`${this.describe()} found no element.`);
+    return result;
+  }
+
+  /** @internal Returns every final match while keeping intermediate scopes strict. */
+  matchesFrom(tree: AccessibilityTree): AccessibilityNode[] {
     let roots = [tree.root];
 
-    for (const segment of this.segments) {
+    for (const [segmentIndex, segment] of this.segments.entries()) {
       const matches = roots
         .flatMap((root) => descendants(root))
         .filter((node) => matchesQuery(node, segment.query));
@@ -154,15 +198,13 @@ export class Locator {
         continue;
       }
 
-      if (matches.length !== 1) {
+      if (segmentIndex < this.segments.length - 1 && matches.length !== 1) {
         throw new LocatorResolutionError(buildStrictnessMessage(this.describe(), matches));
       }
       roots = matches;
     }
 
-    const result = roots[0];
-    if (!result) throw new LocatorResolutionError(`${this.describe()} found no element.`);
-    return result;
+    return roots;
   }
 
   describe(): string {

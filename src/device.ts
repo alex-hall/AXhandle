@@ -80,6 +80,12 @@ export class Device {
     );
   }
 
+  async count(locator: Locator): Promise<number> {
+    return this.enqueue("inspect", async () =>
+      locator.matchesFrom(normalizeAxeTree(await this.driver.describeUi())).length
+    );
+  }
+
   async click(locator: Locator, options: WaitOptions = {}): Promise<void> {
     await this.enqueue("click", async () => {
       const { tree, node } = await this.resolveActionTarget(locator, options);

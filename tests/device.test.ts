@@ -60,6 +60,7 @@ describe("Device locators", () => {
     await expect(device.findByText("Hello").second().resolve()).resolves.toMatchObject({
       label: "Hello"
     });
+    await expect(device.findByText("Hello")).toHaveCount(2);
 
     expect(device.commandLog()).toContainEqual(
       expect.objectContaining({ command: "inspect", status: "failed" })
@@ -167,6 +168,17 @@ describe("Device locators", () => {
     await expect(status).toHaveText("Ready");
 
     expect(clock.elapsed()).toBe(25);
+  });
+
+  it("asserts hidden accessibility state", async () => {
+    const device = new Device("primary", new SequenceDriver([{
+      AXRole: "Application",
+      AXChildren: [
+        { AXRole: "StaticText", AXUniqueId: "status", AXLabel: "Connecting", AXVisible: false }
+      ]
+    }]));
+
+    await expect(device.findByTestId("status")).toBeHidden();
   });
 
   it("waits for an action target before dispatching input", async () => {

@@ -12,7 +12,7 @@ const requireLocator = (received: unknown): Locator => {
 };
 
 const matcher = (
-  name: "visible" | "enabled",
+  name: "visible" | "enabled" | "hidden",
   predicate: (locator: Locator) => (node: Awaited<ReturnType<Locator["resolve"]>>) => boolean
 ) =>
   async function (this: MatcherContext, received: unknown, options?: WaitOptions) {
@@ -70,8 +70,31 @@ const equalityMatcher = <T>(
 export const axeMatchers = {
   toBeVisible: matcher("visible", () => (node) => node.visible),
   toBeEnabled: matcher("enabled", () => (node) => node.enabled === true),
+  toBeHidden: matcher("hidden", () => (node) => !node.visible),
   toHaveText: equalityMatcher("text", (node) => node.label ?? String(node.value ?? "")),
-  toHaveValue: equalityMatcher("value", (node) => node.value)
+  toHaveValue: equalityMatcher("value", (node) => node.value),
+  async toHaveCount(this: MatcherContext, received: unknown, expected: number, options?: WaitOptions) {
+    const locator = requireLocator(received);
+    const wantsMatch = !this.isNot;
+
+    try {
+      const actual = await locator.waitForCountWhere(
+        (count) => (count === expected) === wantsMatch,
+        options,
+        expected
+      );
+      return {
+        pass: wantsMatch,
+        message: () => `Expected ${locator.describe()} ${wantsMatch ? "not " : ""}to have count ${expected}; received ${actual}.`
+      };
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      return {
+        pass: !wantsMatch,
+        message: () => `Expected ${locator.describe()} ${wantsMatch ? "to have" : "not to have"} count ${expected}. ${reason}`
+      };
+    }
+  }
 };
 
 type MaybePromise<T> = T | Promise<T>;
@@ -115,10 +138,12 @@ declare module "@vitest/expect" {
   interface Assertion<T = any> {
     toBeVisible(options?: WaitOptions): Promise<void>;
     toBeEnabled(options?: WaitOptions): Promise<void>;
+    toBeHidden(options?: WaitOptions): Promise<void>;
     toHaveText(expected: string, options?: WaitOptions): Promise<void>;
     toHaveValue(
       expected: string | number | boolean,
       options?: WaitOptions
     ): Promise<void>;
+    toHaveCount(expected: number, options?: WaitOptions): Promise<void>;
   }
 }
