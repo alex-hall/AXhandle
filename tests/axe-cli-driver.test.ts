@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AxeCliDriver } from "../src/index.js";
+import { AxeCliDriver, NodeAxeCommandRunner } from "../src/index.js";
 import type { AxeCommandRunner } from "../src/axe-cli-driver.js";
 
 class RecordingRunner implements AxeCommandRunner {
@@ -39,5 +39,21 @@ describe("AxeCliDriver", () => {
         "SIMULATOR-UDID"
       ]
     ]);
+  });
+
+  it("keeps a missing AXe executable actionable", async () => {
+    const binary = "/tmp/axe-typescript-missing-binary";
+    const runner = new NodeAxeCommandRunner(binary);
+    let received: unknown;
+
+    try {
+      await runner.run(["--version"]);
+    } catch (error) {
+      received = error;
+    }
+
+    expect(received).toBeInstanceOf(Error);
+    expect((received as Error).message).toContain(binary);
+    expect((received as Error).message).toContain("ENOENT");
   });
 });

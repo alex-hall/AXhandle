@@ -15,9 +15,10 @@ export class AxeCommandError extends Error {
   constructor(
     readonly args: readonly string[],
     readonly stderr: string,
-    cause?: unknown
+    cause?: unknown,
+    readonly executable = "axe"
   ) {
-    super(`AXe command failed: axe ${args.join(" ")}\n${stderr}`.trim(), { cause });
+    super(`AXe command failed: ${executable} ${args.join(" ")}\n${stderr}`.trim(), { cause });
     this.name = "AxeCommandError";
   }
 }
@@ -37,7 +38,9 @@ export class NodeAxeCommandRunner implements AxeCommandRunner {
       return { stdout: String(result.stdout), stderr: String(result.stderr) };
     } catch (error) {
       const failure = error as { stderr?: string | Buffer };
-      throw new AxeCommandError(args, String(failure.stderr ?? ""), error);
+      const stderr = String(failure.stderr ?? "").trim();
+      const detail = stderr || (error instanceof Error ? error.message : String(error));
+      throw new AxeCommandError(args, detail, error, this.binary);
     }
   }
 }
