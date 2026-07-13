@@ -20,7 +20,7 @@ milestone changes state.
 | Locator model | In progress | Strict, scoped `findBy…` locators and ordinal selection work; richer query types are pending. |
 | Vitest integration | In progress | Typed device fixture and async matchers work; artifact reporting is pending. |
 | Fixture-based testing | In progress | Versioned synthetic JSON fixtures and a fixture driver work; real captured corpus is pending. |
-| Real-simulator conformance | Not started | Requires a purpose-built public sample app and a pinned Xcode/AXe environment. |
+| Real-simulator conformance | In progress | Public SwiftUI and React Native sample apps share a small control contract; live cases remain opt-in. |
 
 ## Design decisions already made
 
@@ -133,8 +133,12 @@ Status: planned.
 
 Goal: prove the fixture model against a small, wholly public test application.
 
-- [ ] Create a purpose-built public sample app or adopt a public AXe fixture app
-  after reviewing its licensing and stability.
+- [x] Create a purpose-built public SwiftUI integration sample app, kept in the
+  same workspace but outside the published package artifact.
+- [x] Create a separate public React Native sample app with a bare iOS target
+  to validate the React Native accessibility bridge independently of SwiftUI.
+- [ ] Build a minimal native control corpus: nested accessibility container,
+  text field, button, toggle, navigation, and alert.
 - [ ] Capture a provenance-tagged corpus from UIKit, SwiftUI, and nested
   accessibility containers.
 - [ ] Add opt-in conformance tests for inspect, nested locator resolution, tap,
@@ -190,4 +194,5 @@ Acceptance criteria:
    behavior.
 3. Implement only the next interactions justified by that corpus.
 4. Add `doctor` and optional simulator-control boundaries.
-5. Build and gate the real-simulator conformance suite.
+5. Build and gate the real-simulator conformance suite against the integration
+   sample app.

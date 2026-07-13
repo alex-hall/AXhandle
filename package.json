@@ -4,6 +4,7 @@
   "private": true,
   "description": "A TypeScript and Vitest harness for iOS Simulator automation through AXe.",
   "type": "module",
+  "packageManager": "npm@10.1.0",
   "engines": {
     "node": ">=20"
   },
@@ -24,8 +25,16 @@
   "files": [
     "dist"
   ],
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "build:app": "turbo run build --filter=@axe-typescript/integration-sample-app",
+    "build:react-native-app": "turbo run build --filter=@axe-typescript/react-native-sample-app",
+    "app:install": "turbo run app:install --filter=@axe-typescript/integration-sample-app",
+    "react-native-app:install": "turbo run app:install --filter=@axe-typescript/react-native-sample-app",
+    "react-native-app:pods": "npm --workspace @axe-typescript/react-native-sample-app run pods",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
@@ -35,6 +44,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
+    "turbo": "^2.10.4",
     "typescript": "^5.8.0",
     "vitest": "^4.1.0"
   }
