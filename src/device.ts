@@ -2,6 +2,7 @@ import { Locator, LocatorResolutionError, LocatorTimeoutError } from "./locator.
 import { normalizeAxeTree } from "./tree.js";
 import type {
   AccessibilityNode,
+  AccessibilityTree,
   AxeDriver,
   AxeTapTarget,
   Clock,
@@ -78,6 +79,10 @@ export class Device {
     return this.enqueue("inspect", async () =>
       locator.resolveFrom(normalizeAxeTree(await this.driver.describeUi()))
     );
+  }
+
+  async accessibilityTree(): Promise<AccessibilityTree> {
+    return this.enqueue("inspect", async () => normalizeAxeTree(await this.driver.describeUi()));
   }
 
   async count(locator: Locator): Promise<number> {

@@ -1,4 +1,6 @@
 export { AxeCliDriver, AxeCommandError, NodeAxeCommandRunner } from "./axe-cli-driver.js";
+export { captureDeviceEvidence, InMemoryArtifactSink } from "./evidence.js";
+export type { ArtifactSink, AxeArtifact, CaptureDeviceEvidenceOptions } from "./evidence.js";
 export type {
   AxeCliDriverOptions,
   AxeCommandResult,
