@@ -23,13 +23,21 @@ describe("AxeCliDriver", () => {
     await driver.tap({ kind: "point", x: 20, y: 40 });
     await driver.type("Hello");
     await driver.keyCombo([227], 4);
+    await driver.screenshot("artifacts/primary.png");
 
     expect(runner.calls).toEqual([
       ["describe-ui", "--udid", "SIMULATOR-UDID"],
       ["tap", "--id", "send", "--udid", "SIMULATOR-UDID"],
       ["tap", "-x", "20", "-y", "40", "--udid", "SIMULATOR-UDID"],
       ["type", "Hello", "--udid", "SIMULATOR-UDID"],
-      ["key-combo", "--modifiers", "227", "--key", "4", "--udid", "SIMULATOR-UDID"]
+      ["key-combo", "--modifiers", "227", "--key", "4", "--udid", "SIMULATOR-UDID"],
+      [
+        "screenshot",
+        "--output",
+        "artifacts/primary.png",
+        "--udid",
+        "SIMULATOR-UDID"
+      ]
     ]);
   });
 });

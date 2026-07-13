@@ -25,7 +25,7 @@ export type DeviceCommandStatus = "passed" | "failed";
 
 export interface DeviceCommandLogEntry {
   sequence: number;
-  command: "inspect" | "click" | "type" | "fill";
+  command: "inspect" | "click" | "type" | "fill" | "screenshot";
   startedAt: number;
   finishedAt: number;
   status: DeviceCommandStatus;
@@ -110,6 +110,15 @@ export class Device {
         interval: options.interval
       });
     }
+  }
+
+  async screenshot(output: string): Promise<string> {
+    return this.enqueue("screenshot", async () => {
+      if (!this.driver.screenshot) {
+        throw new Error("The configured AXe driver does not support screenshots.");
+      }
+      return this.driver.screenshot(output);
+    });
   }
 
   /** A copy of the structured command history for reporters and artifact sinks. */

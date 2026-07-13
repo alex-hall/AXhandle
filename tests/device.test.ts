@@ -179,4 +179,15 @@ describe("Device locators", () => {
 
     expect(clock.elapsed()).toBe(25);
   });
+
+  it("records an unsupported screenshot attempt as a failed command", async () => {
+    const device = new Device("primary", new FixtureAxeDriver(messageScreen));
+
+    await expect(device.screenshot("artifacts/primary.png")).rejects.toThrow(
+      "does not support screenshots"
+    );
+    expect(device.commandLog()).toContainEqual(
+      expect.objectContaining({ command: "screenshot", status: "failed" })
+    );
+  });
 });
