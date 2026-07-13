@@ -43,6 +43,19 @@ const fakeClock = (): Clock & { elapsed(): number } => {
 };
 
 describe("Device locators", () => {
+  it("prefers AXe's semantic role description over its low-level AX role", async () => {
+    const device = new Device("primary", new FixtureAxeDriver({
+      role_description: "button",
+      role: "AXButton",
+      AXUniqueId: "send",
+      AXLabel: "Send",
+      enabled: true,
+      children: []
+    }));
+
+    await expect(device.findByRole("button", { name: "Send" })).toBeEnabled();
+  });
+
   it("scopes findBy queries to an accessibility fragment", async () => {
     const device = new Device("primary", new FixtureAxeDriver(messageScreen));
     const aliceThread = device.findByTestId("thread-a");

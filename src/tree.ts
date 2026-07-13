@@ -66,17 +66,52 @@ export function normalizeAxeNode(raw: unknown): AccessibilityNode {
     throw new TypeError("Expected an accessibility node object.");
   }
 
-  return {
-    role: (firstString(raw.AXRole, raw.role, raw.type) ?? "Unknown").toLowerCase(),
+  const node: AccessibilityNode = {
+    // AXe currently exposes both a low-level role (for example `AXButton`)
+    // and the user-facing accessibility role (`button`). Prefer the latter so
+    // locator roles remain stable and match iOS accessibility terminology.
+    role: (firstString(raw.role_description, raw.AXRole, raw.role, raw.type) ?? "Unknown").toLowerCase(),
     id: firstString(raw.AXUniqueId, raw.AXIdentifier, raw.id),
     label: firstString(raw.AXLabel, raw.label, raw.name),
     value: firstValue(raw.AXValue, raw.value),
     enabled: firstBoolean(raw.AXEnabled, raw.enabled),
     visible: firstBoolean(raw.AXVisible, raw.visible, raw.isVisible) ?? true,
     frame: normalizeFrame(raw.frame ?? raw.AXFrame),
-    children: childValues(raw).map(normalizeAxeNode)
+    children: []
   };
+
+  node.children = childValues(raw)
+    .map(normalizeAxeNode)
+    .filter((child) => !isRedundantAccessibilityWrapper(node, child));
+
+  return node;
 }
+
+/**
+ * React Native currently emits some leaf Text elements twice: once as the
+ * identified accessibility element and again as an unidentifiable child with
+ * exactly the same semantics and frame. Preserve strict locator behavior by
+ * collapsing only that provably redundant leaf wrapper.
+ */
+const isRedundantAccessibilityWrapper = (
+  parent: AccessibilityNode,
+  child: AccessibilityNode
+): boolean =>
+  child.id === undefined &&
+  child.children.length === 0 &&
+  (parent.label !== undefined || parent.value !== undefined) &&
+  parent.role === child.role &&
+  parent.label === child.label &&
+  parent.value === child.value &&
+  parent.enabled === child.enabled &&
+  parent.visible === child.visible &&
+  framesEqual(parent.frame, child.frame);
+
+const framesEqual = (left: Frame | undefined, right: Frame | undefined): boolean =>
+  left?.x === right?.x &&
+  left?.y === right?.y &&
+  left?.width === right?.width &&
+  left?.height === right?.height;
 
 export function normalizeAxeTree(raw: unknown): AccessibilityTree {
   if (Array.isArray(raw)) {
