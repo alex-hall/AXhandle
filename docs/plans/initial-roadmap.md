@@ -19,7 +19,7 @@ milestone changes state.
 | AXe CLI boundary | In progress | `describe-ui`, tap, type, key-combo, and screenshot are typed; version checks and remaining primitives are pending. |
 | Locator model | In progress | Strict, scoped `findBy…` locators and ordinal selection work; richer query types are pending. |
 | Vitest integration | In progress | Typed device fixture and async matchers work; artifact reporting is pending. |
-| Fixture-based testing | In progress | Versioned synthetic JSON fixtures and one provenance-tagged React Native capture work; broader corpus is pending. |
+| Fixture-based testing | In progress | Versioned synthetic JSON fixtures plus provenance-tagged React Native and SwiftUI captures work; broader corpus is pending. |
 | Real-simulator conformance | In progress | Public SwiftUI and React Native sample apps share a small control contract; an opt-in React Native flow now validates the live AXe bridge. |
 
 ## Design decisions already made
@@ -144,7 +144,8 @@ Goal: prove the fixture model against a small, wholly public test application.
 - [ ] Build a minimal native control corpus: nested accessibility container,
   text field, button, toggle, navigation, and alert.
 - [ ] Capture a provenance-tagged corpus from UIKit, SwiftUI, and nested
-  accessibility containers. A React Native initial-state capture is committed.
+  accessibility containers. React Native and SwiftUI initial-state captures are
+  committed; UIKit and deeper nesting remain.
 - [ ] Add opt-in conformance tests for inspect, nested locator resolution, tap,
   type, fill, switch/toggle, screenshot, and orientation. Semantic role/name
   resolution, fill, tap, navigation, and reset hooks are covered for React
@@ -152,7 +153,8 @@ Goal: prove the fixture model against a small, wholly public test application.
 - [x] Run conformance tests only when explicit environment variables provide a
   supported AXe binary and simulator UDID.
 - [ ] Record the AXe, Xcode, runtime, device, and orientation for every captured
-  fixture. The React Native capture records all five; future captures must too.
+  fixture. The React Native and SwiftUI captures record all five; future
+  captures must too.
 
 Acceptance criteria:
 

@@ -28,6 +28,7 @@ private struct ContentView: View {
               .accessibilityIdentifier("composer-title")
 
             TextField("Message", text: $message)
+              .accessibilityLabel("Message")
               .accessibilityIdentifier("message-input")
 
             Button("Send") {
@@ -38,6 +39,7 @@ private struct ContentView: View {
 
             if didSend {
               Text("Delivered")
+                .accessibilityLabel("Delivery status: Delivered")
                 .accessibilityIdentifier("delivery-status")
             }
           }
