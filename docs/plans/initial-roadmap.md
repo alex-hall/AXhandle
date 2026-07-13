@@ -203,10 +203,24 @@ Acceptance criteria:
 
 ## Near-term order of work
 
-1. Failure evidence and artifact-sink contract.
-2. Capture and validate a small public AXe tree corpus for scoped locator
-   behavior.
-3. Implement only the next interactions justified by that corpus.
-4. Add `doctor` and optional simulator-control boundaries.
-5. Build and gate the real-simulator end-to-end suite against the integration
-   sample app.
+The original first vertical slice is complete: fixture-backed coverage, public
+SwiftUI/React Native samples, a diagnostic preflight, and a gated real
+Alice-to-Bob two-simulator React Native flow are all in place.
+
+1. **Lifecycle hardening.** Add a lower-level test seam for reset, evidence,
+   and provider-release failures; verify that cleanup always runs and the
+   original test failure remains primary.
+2. **Optional simulator and system boundaries.** Define an injected,
+   shell-free simulator-control adapter for install, launch, termination,
+   erase/reset, and permissions. Define a separate biometric/system-event
+   adapter for Face ID enrollment, match, and non-match; neither belongs in the
+   AXe core driver.
+3. **Compatibility policy.** Record the currently validated AXe 1.7.1 / Xcode
+   26.6 / iOS 26.5 combination and decide how `diagnoseAxe` reports supported
+   versus merely detected versions.
+4. **Fixture-led expansion.** Add live SwiftUI coverage, then screenshot,
+   orientation, alert, UIKit, and deeper-container cases only when a public
+   capture demonstrates a needed interaction. Do not add broad query
+   refinements or gestures speculatively.
+5. **Release readiness.** Complete API documentation and examples, choose a
+   license and publishing owner, then add changelog and release automation.
