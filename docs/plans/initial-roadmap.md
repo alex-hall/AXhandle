@@ -25,7 +25,7 @@ track or a public fixture proves they are needed.
 | Multi-device core | Complete | Named device leases, direct lifecycle failure tests, documented two-simulator runbook, and a repeatable Alice-to-Bob React Native e2e flow. |
 | Simulator and system boundary | Complete | Shell-free optional Xcode simulator-control adapter plus a separate, explicitly unsupported-by-default biometric interface. |
 | Compatibility and public proof | Complete | AXe supported-version policy and validated matrix are recorded, with gated public SwiftUI native-control and React Native multi-device proofs. |
-| Release readiness | In progress | Package contents are verified and consumer documentation/changelog are being prepared; license, ownership, and publishing remain maintainer decisions. |
+| Release readiness | Awaiting maintainer decisions | Package contents are verified and consumer documentation, changelog, and release checklist are prepared; license, ownership, and publishing remain maintainer decisions. |
 
 ## Progress snapshot
 
@@ -189,7 +189,7 @@ Acceptance criteria:
 
 ## Milestone 5 — multi-device orchestration and release readiness
 
-Status: planned.
+Status: awaiting maintainer decisions.
 
 Goal: support portable multi-device test suites without introducing hidden
 shared state.
@@ -200,10 +200,11 @@ shared state.
   Alice-to-Bob flow exercises two physical simulators.
 - [x] Add lifecycle tests for reset failures, test failures, and cleanup error
   preservation.
-- [ ] Add package metadata, API documentation, examples, changelog, and a
-  license chosen by the maintainers.
-- [ ] Decide publishing ownership, package name availability, and release
-  automation before publishing anything.
+- [ ] Add a license chosen by the maintainers. Consumer documentation,
+  examples, changelog, package-content verification, and a release checklist
+  are complete.
+- [ ] Decide publishing ownership, final package name, public repository
+  metadata, and release automation before publishing anything.
 
 Acceptance criteria:
 
