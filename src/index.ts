@@ -15,6 +15,7 @@ export type {
   UiSnapshot
 } from "./device.js";
 export { diagnoseAxe } from "./doctor.js";
+export { supportedAxeVersions } from "./doctor.js";
 export type {
   AxeDoctorCheck,
   AxeDoctorCheckName,

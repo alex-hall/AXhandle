@@ -24,7 +24,7 @@ track or a public fixture proves they are needed.
 | --- | --- | --- |
 | Multi-device core | Complete | Named device leases, direct lifecycle failure tests, documented two-simulator runbook, and a repeatable Alice-to-Bob React Native e2e flow. |
 | Simulator and system boundary | Complete | Shell-free optional Xcode simulator-control adapter plus a separate, explicitly unsupported-by-default biometric interface. |
-| Compatibility and public proof | Queued | Supported-version policy, compatibility matrix, and only the SwiftUI/UIKit e2e coverage justified by public captures. |
+| Compatibility and public proof | In progress | AXe supported-version policy and validated matrix are recorded; only the SwiftUI/UIKit e2e coverage justified by public captures remains. |
 | Release readiness | Queued | API docs, examples, license/publishing decisions, changelog, and release automation. |
 
 ## Progress snapshot
@@ -139,7 +139,7 @@ of the portable core.
 - [x] Add a `doctor` capability that checks the configured AXe binary and
   version, booted simulator, accessibility-tree read, and optional screenshot
   path. A supported-version policy remains to be chosen.
-- [ ] Pin and document the supported AXe/Xcode compatibility matrix.
+- [x] Pin and document the supported AXe/Xcode compatibility matrix.
 - [x] Define an optional simulator-control integration boundary for app launch,
   installation, termination, erase/reset, and permission setup.
 - [x] Define an optional biometric/system-event integration boundary. Face ID

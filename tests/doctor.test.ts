@@ -79,4 +79,26 @@ describe("diagnoseAxe", () => {
       { name: "screenshot", status: "skipped", message: "No screenshot path was requested." }
     ]);
   });
+
+  it("reports an unsupported AXe version while retaining later diagnostics", async () => {
+    const runner = new ScriptedRunner({
+      "--version": "1.8.0\n",
+      "list-simulators": "SIMULATOR-UDID | iPhone 17 | Booted | iPhone 17 | OS 'iOS 26.5'\n",
+      "describe-ui --udid SIMULATOR-UDID": '{ "AXRole": "Application" }'
+    });
+
+    const result = await diagnoseAxe({ udid: "SIMULATOR-UDID", runner });
+
+    expect(result.healthy).toBe(false);
+    expect(result.checks).toEqual([
+      {
+        name: "axe",
+        status: "failed",
+        message: "AXe 1.8.0 is not supported. Supported versions: 1.7.1."
+      },
+      expect.objectContaining({ name: "simulator", status: "passed" }),
+      expect.objectContaining({ name: "accessibility", status: "passed" }),
+      expect.objectContaining({ name: "screenshot", status: "skipped" })
+    ]);
+  });
 });

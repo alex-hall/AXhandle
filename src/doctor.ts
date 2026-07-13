@@ -6,6 +6,9 @@ import type { AxeDriver } from "./types.js";
 export type AxeDoctorCheckName = "axe" | "simulator" | "accessibility" | "screenshot";
 export type AxeDoctorCheckStatus = "passed" | "failed" | "skipped";
 
+/** Versions exercised by the public fixture and end-to-end corpus. */
+export const supportedAxeVersions = ["1.7.1"] as const;
+
 export interface AxeDoctorCheck {
   name: AxeDoctorCheckName;
   status: AxeDoctorCheckStatus;
@@ -21,6 +24,8 @@ export interface AxeDoctorOptions {
   driver?: Pick<AxeDriver, "describeUi" | "screenshot">;
   /** Capture a screenshot only when the caller explicitly provides a path. */
   screenshotPath?: string;
+  /** Override the package's supported AXe versions for a controlled rollout. */
+  supportedVersions?: readonly string[];
 }
 
 export interface AxeDoctorResult {
@@ -45,6 +50,12 @@ export async function diagnoseAxe(options: AxeDoctorOptions): Promise<AxeDoctorR
     const { stdout } = await runner.run(["--version"]);
     axeVersion = stdout.trim();
     if (!axeVersion) throw new Error("AXe returned no version information.");
+    const supportedVersions = options.supportedVersions ?? supportedAxeVersions;
+    if (!supportedVersions.includes(axeVersion)) {
+      throw new Error(
+        `AXe ${axeVersion} is not supported. Supported versions: ${supportedVersions.join(", ")}.`
+      );
+    }
     checks.push({ name: "axe", status: "passed", message: `AXe ${axeVersion} is available.` });
   } catch (error) {
     checks.push({ name: "axe", status: "failed", message: errorMessage(error) });

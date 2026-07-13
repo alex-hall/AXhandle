@@ -278,6 +278,9 @@ The result retains every individual check, so an unavailable AXe binary, an
 unbooted simulator, malformed UI response, and screenshot failure remain
 distinct and actionable.
 
+The supported-version policy and validated public matrix are in
+`docs/compatibility.md`.
+
 ## Optional simulator and biometric control
 
 `Device` deliberately does not launch apps, erase simulators, or grant OS
