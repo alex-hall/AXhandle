@@ -1,6 +1,8 @@
 import { test as baseTest } from "vitest";
 import { Locator } from "./locator.js";
 import type { Device } from "./device.js";
+import { captureDeviceEvidence } from "./evidence.js";
+import type { ArtifactSink, CaptureDeviceEvidenceOptions } from "./evidence.js";
 import type { WaitOptions } from "./types.js";
 import type {} from "@vitest/expect";
 
@@ -110,6 +112,13 @@ export interface CreateAxeTestOptions<TDevices extends DeviceSet> {
   beforeTest?(context: AxeTestLifecycle<TDevices>): MaybePromise<void>;
   /** Always runs after the test body, including after a failed assertion. */
   reset?(context: AxeTestLifecycle<TDevices>): MaybePromise<void>;
+  evidence?: VitestEvidenceOptions;
+}
+
+export interface VitestEvidenceOptions extends CaptureDeviceEvidenceOptions {
+  sink: ArtifactSink;
+  /** Defaults to failure, keeping ordinary successful test runs quiet. */
+  capture?: "failure" | "always";
 }
 
 /**
@@ -123,12 +132,40 @@ export function createAxeTest<TDevices extends DeviceSet>(
     devices: async ({}, use) => {
       const devices = await options.createDevices();
       const context = { devices };
+      let primaryError: unknown;
+      let deferredError: unknown;
 
       try {
         await options.beforeTest?.(context);
         await use(devices);
+      } catch (error) {
+        primaryError = error;
+        throw error;
       } finally {
-        await options.reset?.(context);
+        const evidenceOptions = options.evidence;
+        const shouldCapture =
+          evidenceOptions &&
+          (evidenceOptions.capture === "always" || primaryError !== undefined);
+
+        if (shouldCapture) {
+          try {
+            for (const device of Object.values(devices)) {
+              await captureDeviceEvidence(device, evidenceOptions.sink, evidenceOptions);
+            }
+          } catch (error) {
+            deferredError ??= error;
+          }
+        }
+
+        try {
+          await options.reset?.(context);
+        } catch (error) {
+          deferredError ??= error;
+        }
+
+        if (primaryError === undefined && deferredError !== undefined) {
+          throw deferredError;
+        }
       }
     }
   });

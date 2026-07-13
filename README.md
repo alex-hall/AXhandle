@@ -87,6 +87,29 @@ await composer.findByTestId("message-input").type("Hello");
 assertions execute immediately as normal promises when they are awaited; there
 is no Cypress-style hidden command queue.
 
+## Failure evidence
+
+The Vitest fixture can capture a normalized accessibility tree and command log
+when a test fails. Consumers own the destination through an artifact sink:
+
+```ts
+import { InMemoryArtifactSink } from "axe-typescript";
+
+const evidence = new InMemoryArtifactSink();
+
+export const test = createAxeTest({
+  createDevices,
+  evidence: {
+    sink: evidence,
+    capture: "failure",
+    screenshotPath: (device) => `artifacts/${device.name}.png`
+  }
+});
+```
+
+Evidence is collected before `reset`. Capture and reset failures do not replace
+the original test failure.
+
 ## Text input
 
 `type()` appends HID keystrokes to the focused field. `fill()` replaces text by
