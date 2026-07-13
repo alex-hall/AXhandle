@@ -18,6 +18,8 @@ describe("captured React Native accessibility fixture", () => {
     const device = new Device("react-native-fixture", new FixtureAxeDriver(fixtureTree(fixture)));
 
     await expect(device.findByTestId("sample-root")).toBeVisible();
+    await expect(device.findByRole("button", { name: "Use Alice" })).toBeVisible();
+    await expect(device.findByRole("button", { name: "Use Bob" })).toBeVisible();
     await expect(device.findByTestId("composer")).toBeVisible();
     await expect(device.findByText("AXe React Native Sample")).toBeVisible();
     await expect(device.findByRole("text field", { name: "Message" })).toBeVisible();

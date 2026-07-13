@@ -20,7 +20,7 @@ milestone changes state.
 | Locator model | In progress | Strict, scoped `findBy…` locators and ordinal selection work; richer query types are pending. |
 | Vitest integration | In progress | Typed device fixture and async matchers work; artifact reporting is pending. |
 | Fixture-based testing | In progress | Versioned synthetic JSON fixtures plus provenance-tagged React Native and SwiftUI captures work; broader corpus is pending. |
-| Real-simulator conformance | In progress | Public SwiftUI and React Native sample apps share a small control contract; an opt-in React Native flow now validates the live AXe bridge. |
+| Real-simulator conformance | In progress | Public SwiftUI and React Native sample apps share a small control contract; opt-in React Native cases validate both a single app and a real Alice-to-Bob flow across two simulators. |
 
 ## Design decisions already made
 
@@ -151,8 +151,9 @@ Goal: prove the fixture model against a small, wholly public test application.
   committed; UIKit and deeper nesting remain.
 - [ ] Add opt-in conformance tests for inspect, nested locator resolution, tap,
   type, fill, switch/toggle, screenshot, and orientation. Semantic role/name
-  resolution, fill, tap, navigation, and reset hooks are covered for React
-  Native; descendant resolution remains blocked by the flattened AXe tree.
+  resolution, fill, tap, navigation, reset hooks, and an Alice-to-Bob
+  two-simulator message delivery are covered for React Native; descendant
+  resolution remains blocked by the flattened AXe tree.
 - [x] Run conformance tests only when explicit environment variables provide a
   supported AXe binary and simulator UDID.
 - [ ] Record the AXe, Xcode, runtime, device, and orientation for every captured
@@ -171,9 +172,10 @@ Status: planned.
 Goal: support portable multi-device test suites without introducing hidden
 shared state.
 
-- [ ] Define device-provider and allocation contracts for named devices.
-- [ ] Ensure each device serializes its own commands while separate devices can
-  run concurrently through ordinary `Promise.all`.
+- [x] Define device-provider and allocation contracts for named devices.
+- [x] Ensure each device serializes its own commands while separate devices can
+  run concurrently through ordinary `Promise.all`; a gated React Native
+  Alice-to-Bob flow exercises two physical simulators.
 - [ ] Add lifecycle tests for reset failures, test failures, and cleanup error
   preservation.
 - [ ] Add package metadata, API documentation, examples, changelog, and a

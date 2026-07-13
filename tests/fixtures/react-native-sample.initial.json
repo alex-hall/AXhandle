@@ -230,20 +230,20 @@
                                               "role": "AXStaticText",
                                               "children": [],
                                               "subrole": null,
-                                              "pid": 904
+                                              "pid": 34576
                                             }
                                           ],
                                           "subrole": null,
-                                          "pid": 904
+                                          "pid": 34576
                                         },
                                         {
-                                          "AXFrame": "{{24, 143.66667175292969}, {354, 168.99998474121094}}",
-                                          "AXUniqueId": "composer",
+                                          "AXFrame": "{{24, 143.66667175292969}, {354, 141.66667175292969}}",
+                                          "AXUniqueId": null,
                                           "frame": {
                                             "y": 143.66667175292969,
                                             "x": 24,
                                             "width": 354,
-                                            "height": 168.99998474121094
+                                            "height": 141.66667175292969
                                           },
                                           "role_description": "group",
                                           "AXLabel": null,
@@ -257,11 +257,11 @@
                                           "role": "AXGroup",
                                           "children": [],
                                           "subrole": null,
-                                          "pid": 904
+                                          "pid": 34576
                                         },
                                         {
                                           "AXFrame": "{{41, 160.66667175292969}, {320, 20.333335876464844}}",
-                                          "AXUniqueId": "composer-title",
+                                          "AXUniqueId": null,
                                           "frame": {
                                             "y": 160.66667175292969,
                                             "x": 41,
@@ -269,7 +269,7 @@
                                             "height": 20.333335876464844
                                           },
                                           "role_description": "text",
-                                          "AXLabel": "Message composer",
+                                          "AXLabel": "Peer identity",
                                           "content_required": false,
                                           "type": "StaticText",
                                           "title": null,
@@ -289,6 +289,169 @@
                                                 "height": 20.333335876464844
                                               },
                                               "role_description": "text",
+                                              "AXLabel": "Peer identity",
+                                              "content_required": false,
+                                              "type": "StaticText",
+                                              "title": null,
+                                              "help": null,
+                                              "custom_actions": [],
+                                              "AXValue": null,
+                                              "enabled": true,
+                                              "role": "AXStaticText",
+                                              "children": [],
+                                              "subrole": null,
+                                              "pid": 34576
+                                            }
+                                          ],
+                                          "subrole": null,
+                                          "pid": 34576
+                                        },
+                                        {
+                                          "AXFrame": "{{41, 193.00000381469727}, {320, 17}}",
+                                          "AXUniqueId": null,
+                                          "frame": {
+                                            "y": 193.00000381469727,
+                                            "x": 41,
+                                            "width": 320,
+                                            "height": 17
+                                          },
+                                          "role_description": "text",
+                                          "AXLabel": "Identity: not selected",
+                                          "content_required": false,
+                                          "type": "StaticText",
+                                          "title": null,
+                                          "help": null,
+                                          "custom_actions": [],
+                                          "AXValue": null,
+                                          "enabled": true,
+                                          "role": "AXStaticText",
+                                          "children": [
+                                            {
+                                              "AXFrame": "{{41, 193.00000381469727}, {320, 17}}",
+                                              "AXUniqueId": null,
+                                              "frame": {
+                                                "y": 193.00000381469727,
+                                                "x": 41,
+                                                "width": 320,
+                                                "height": 17
+                                              },
+                                              "role_description": "text",
+                                              "AXLabel": "Identity: not selected",
+                                              "content_required": false,
+                                              "type": "StaticText",
+                                              "title": null,
+                                              "help": null,
+                                              "custom_actions": [],
+                                              "AXValue": null,
+                                              "enabled": true,
+                                              "role": "AXStaticText",
+                                              "children": [],
+                                              "subrole": null,
+                                              "pid": 34576
+                                            }
+                                          ],
+                                          "subrole": null,
+                                          "pid": 34576
+                                        },
+                                        {
+                                          "AXFrame": "{{41, 222.00000762939453}, {154, 46.333328247070312}}",
+                                          "AXUniqueId": "identity-alice",
+                                          "frame": {
+                                            "y": 222.00000762939453,
+                                            "x": 41,
+                                            "width": 154,
+                                            "height": 46.333328247070312
+                                          },
+                                          "role_description": "button",
+                                          "AXLabel": "Use Alice",
+                                          "content_required": false,
+                                          "type": "Button",
+                                          "title": null,
+                                          "help": null,
+                                          "custom_actions": [],
+                                          "AXValue": null,
+                                          "enabled": true,
+                                          "role": "AXButton",
+                                          "children": [],
+                                          "subrole": null,
+                                          "pid": 34576
+                                        },
+                                        {
+                                          "AXFrame": "{{207, 222.00000762939453}, {154, 46.333328247070312}}",
+                                          "AXUniqueId": "identity-bob",
+                                          "frame": {
+                                            "y": 222.00000762939453,
+                                            "x": 207,
+                                            "width": 154,
+                                            "height": 46.333328247070312
+                                          },
+                                          "role_description": "button",
+                                          "AXLabel": "Use Bob",
+                                          "content_required": false,
+                                          "type": "Button",
+                                          "title": null,
+                                          "help": null,
+                                          "custom_actions": [],
+                                          "AXValue": null,
+                                          "enabled": true,
+                                          "role": "AXButton",
+                                          "children": [],
+                                          "subrole": null,
+                                          "pid": 34576
+                                        },
+                                        {
+                                          "AXFrame": "{{24, 301.33334350585938}, {354, 169}}",
+                                          "AXUniqueId": "composer",
+                                          "frame": {
+                                            "y": 301.33334350585938,
+                                            "x": 24,
+                                            "width": 354,
+                                            "height": 169
+                                          },
+                                          "role_description": "group",
+                                          "AXLabel": null,
+                                          "content_required": false,
+                                          "type": "Group",
+                                          "title": null,
+                                          "help": null,
+                                          "custom_actions": [],
+                                          "AXValue": null,
+                                          "enabled": true,
+                                          "role": "AXGroup",
+                                          "children": [],
+                                          "subrole": null,
+                                          "pid": 34576
+                                        },
+                                        {
+                                          "AXFrame": "{{41, 318.33334350585938}, {320, 20.33331298828125}}",
+                                          "AXUniqueId": "composer-title",
+                                          "frame": {
+                                            "y": 318.33334350585938,
+                                            "x": 41,
+                                            "width": 320,
+                                            "height": 20.33331298828125
+                                          },
+                                          "role_description": "text",
+                                          "AXLabel": "Message composer",
+                                          "content_required": false,
+                                          "type": "StaticText",
+                                          "title": null,
+                                          "help": null,
+                                          "custom_actions": [],
+                                          "AXValue": null,
+                                          "enabled": true,
+                                          "role": "AXStaticText",
+                                          "children": [
+                                            {
+                                              "AXFrame": "{{41, 318.33334350585938}, {320, 20.33331298828125}}",
+                                              "AXUniqueId": null,
+                                              "frame": {
+                                                "y": 318.33334350585938,
+                                                "x": 41,
+                                                "width": 320,
+                                                "height": 20.33331298828125
+                                              },
+                                              "role_description": "text",
                                               "AXLabel": "Message composer",
                                               "content_required": false,
                                               "type": "StaticText",
@@ -300,20 +463,20 @@
                                               "role": "AXStaticText",
                                               "children": [],
                                               "subrole": null,
-                                              "pid": 904
+                                              "pid": 34576
                                             }
                                           ],
                                           "subrole": null,
-                                          "pid": 904
+                                          "pid": 34576
                                         },
                                         {
-                                          "AXFrame": "{{41, 193.00000381469727}, {320, 46.333328247070312}}",
+                                          "AXFrame": "{{41, 350.66667556762695}, {320, 46.333343505859375}}",
                                           "AXUniqueId": null,
                                           "frame": {
-                                            "y": 193.00000381469727,
+                                            "y": 350.66667556762695,
                                             "x": 41,
                                             "width": 320,
-                                            "height": 46.333328247070312
+                                            "height": 46.333343505859375
                                           },
                                           "role_description": "group",
                                           "AXLabel": null,
@@ -327,13 +490,13 @@
                                           "role": "AXGroup",
                                           "children": [
                                             {
-                                              "AXFrame": "{{42, 194.00000381469727}, {318, 44.333328247070312}}",
+                                              "AXFrame": "{{42, 351.66667556762695}, {318, 44.333343505859375}}",
                                               "AXUniqueId": "message-input",
                                               "frame": {
-                                                "y": 194.00000381469727,
+                                                "y": 351.66667556762695,
                                                 "x": 42,
                                                 "width": 318,
-                                                "height": 44.333328247070312
+                                                "height": 44.333343505859375
                                               },
                                               "role_description": "text field",
                                               "AXLabel": "Message",
@@ -347,17 +510,17 @@
                                               "role": "AXTextField",
                                               "children": [],
                                               "subrole": null,
-                                              "pid": 904
+                                              "pid": 34576
                                             }
                                           ],
                                           "subrole": null,
-                                          "pid": 904
+                                          "pid": 34576
                                         },
                                         {
-                                          "AXFrame": "{{41, 251.33333587646484}, {320, 44.333343505859375}}",
+                                          "AXFrame": "{{41, 409.00000762939453}, {320, 44.333343505859375}}",
                                           "AXUniqueId": "send",
                                           "frame": {
-                                            "y": 251.33333587646484,
+                                            "y": 409.00000762939453,
                                             "x": 41,
                                             "width": 320,
                                             "height": 44.333343505859375
@@ -374,13 +537,13 @@
                                           "role": "AXButton",
                                           "children": [],
                                           "subrole": null,
-                                          "pid": 904
+                                          "pid": 34576
                                         },
                                         {
-                                          "AXFrame": "{{24, 328.66665649414062}, {354, 110.33334350585938}}",
+                                          "AXFrame": "{{24, 486.33334350585938}, {354, 110.33334350585938}}",
                                           "AXUniqueId": null,
                                           "frame": {
-                                            "y": 328.66665649414062,
+                                            "y": 486.33334350585938,
                                             "x": 24,
                                             "width": 354,
                                             "height": 110.33334350585938
@@ -397,16 +560,16 @@
                                           "role": "AXGroup",
                                           "children": [],
                                           "subrole": null,
-                                          "pid": 904
+                                          "pid": 34576
                                         },
                                         {
-                                          "AXFrame": "{{41, 349.33332324028015}, {101.33332824707031, 20.33331298828125}}",
+                                          "AXFrame": "{{41, 507.0000102519989}, {101.33332824707031, 20.333343505859375}}",
                                           "AXUniqueId": null,
                                           "frame": {
-                                            "y": 349.33332324028015,
+                                            "y": 507.0000102519989,
                                             "x": 41,
                                             "width": 101.33332824707031,
-                                            "height": 20.33331298828125
+                                            "height": 20.333343505859375
                                           },
                                           "role_description": "text",
                                           "AXLabel": "Notifications",
@@ -420,13 +583,13 @@
                                           "role": "AXStaticText",
                                           "children": [
                                             {
-                                              "AXFrame": "{{41, 349.33332324028015}, {101.33332824707031, 20.33331298828125}}",
+                                              "AXFrame": "{{41, 507.0000102519989}, {101.33332824707031, 20.333343505859375}}",
                                               "AXUniqueId": null,
                                               "frame": {
-                                                "y": 349.33332324028015,
+                                                "y": 507.0000102519989,
                                                 "x": 41,
                                                 "width": 101.33332824707031,
-                                                "height": 20.33331298828125
+                                                "height": 20.333343505859375
                                               },
                                               "role_description": "text",
                                               "AXLabel": "Notifications",
@@ -440,17 +603,17 @@
                                               "role": "AXStaticText",
                                               "children": [],
                                               "subrole": null,
-                                              "pid": 904
+                                              "pid": 34576
                                             }
                                           ],
                                           "subrole": null,
-                                          "pid": 904
+                                          "pid": 34576
                                         },
                                         {
-                                          "AXFrame": "{{298, 345.66665649414062}, {63, 28}}",
+                                          "AXFrame": "{{298, 503.33334350585938}, {63, 28}}",
                                           "AXUniqueId": null,
                                           "frame": {
-                                            "y": 345.66665649414062,
+                                            "y": 503.33334350585938,
                                             "x": 298,
                                             "width": 63,
                                             "height": 28
@@ -467,10 +630,10 @@
                                           "role": "AXGroup",
                                           "children": [
                                             {
-                                              "AXFrame": "{{298, 345.66665649414062}, {63, 28}}",
+                                              "AXFrame": "{{298, 503.33334350585938}, {63, 28}}",
                                               "AXUniqueId": "notifications",
                                               "frame": {
-                                                "y": 345.66665649414062,
+                                                "y": 503.33334350585938,
                                                 "x": 298,
                                                 "width": 63,
                                                 "height": 28
@@ -487,17 +650,17 @@
                                               "role": "AXCheckBox",
                                               "children": [],
                                               "subrole": "AXSwitch",
-                                              "pid": 904
+                                              "pid": 34576
                                             }
                                           ],
                                           "subrole": null,
-                                          "pid": 904
+                                          "pid": 34576
                                         },
                                         {
-                                          "AXFrame": "{{41, 385.66665649414062}, {320, 36.333343505859375}}",
+                                          "AXFrame": "{{41, 543.33334350585938}, {320, 36.333343505859375}}",
                                           "AXUniqueId": "details-link",
                                           "frame": {
-                                            "y": 385.66665649414062,
+                                            "y": 543.33334350585938,
                                             "x": 41,
                                             "width": 320,
                                             "height": 36.333343505859375
@@ -514,43 +677,43 @@
                                           "role": "AXLink",
                                           "children": [],
                                           "subrole": null,
-                                          "pid": 904
+                                          "pid": 34576
                                         }
                                       ],
                                       "subrole": null,
-                                      "pid": 904
+                                      "pid": 34576
                                     }
                                   ],
                                   "subrole": null,
-                                  "pid": 904
+                                  "pid": 34576
                                 }
                               ],
                               "subrole": null,
-                              "pid": 904
+                              "pid": 34576
                             }
                           ],
                           "subrole": null,
-                          "pid": 904
+                          "pid": 34576
                         }
                       ],
                       "subrole": null,
-                      "pid": 904
+                      "pid": 34576
                     }
                   ],
                   "subrole": null,
-                  "pid": 904
+                  "pid": 34576
                 }
               ],
               "subrole": null,
-              "pid": 904
+              "pid": 34576
             }
           ],
           "subrole": null,
-          "pid": 904
+          "pid": 34576
         }
       ],
       "subrole": null,
-      "pid": 904
+      "pid": 34576
     }
   ]
 }

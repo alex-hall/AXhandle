@@ -27,3 +27,9 @@ release build on a booted simulator, provide its UDID:
 ```sh
 SIMULATOR_UDID=<udid> npm run react-native-app:install
 ```
+
+For the public multi-device conformance flow, install and launch the same
+release build on two booted simulators. The root `test:conformance` command
+starts a host-only relay, selects Alice and Bob in the separate app instances,
+and verifies delivery with ordinary AXe accessibility assertions. No external
+network or credentials are used.

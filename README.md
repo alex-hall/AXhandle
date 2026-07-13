@@ -49,6 +49,22 @@ The live test waits for an accessibility condition rather than sleeping. It
 also puts its public sample form into a known state before exercising it, but
 the library itself intentionally does not own app launch or simulator reset.
 
+The flagship peer flow uses two separately booted simulators, each with the
+same public React Native sample installed and launched. Its local relay is
+started and reset by the conformance suite; it has no external service or
+credentials:
+
+```sh
+AXE_CONFORMANCE=1 \
+AXE_CONFORMANCE_ALICE_UDID=<alice-udid> \
+AXE_CONFORMANCE_BOB_UDID=<bob-udid> \
+npm run test:conformance
+```
+
+The test selects Alice and Bob in their respective app instances, sends an
+actual message from Alice, and waits for Bob's accessible incoming-message
+state. Do not also set `AXE_CONFORMANCE_UDID` for this pair mode.
+
 ## Fixtures
 
 Fixture tests use a versioned JSON envelope. Its `tree` is the untouched value
