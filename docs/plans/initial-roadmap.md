@@ -33,11 +33,20 @@ track or a public fixture proves they are needed.
 | --- | --- | --- |
 | Project safety and public boundaries | Complete | `Agent.MD` prohibits private fixtures and app information. |
 | TypeScript package scaffold | Complete | Node 24, TypeScript, Vitest, build, and typecheck are configured. |
-| AXe CLI boundary | In progress | `describe-ui`, tap, type, key-combo, screenshot, and a read-only diagnostic preflight are typed; supported-version policy and remaining primitives are pending. |
+| AXe CLI boundary | In progress | `describe-ui`, tap, type, key-combo, screenshot, and a read-only diagnostic preflight are typed; the supported-version policy is complete and new primitives remain fixture-led work. |
 | Locator model | In progress | Strict, scoped `findBy…` locators and ordinal selection work; richer query types are pending. |
-| Vitest integration | In progress | Typed device fixture and async matchers work; artifact reporting is pending. |
+| Vitest integration | Complete for the portable core | Typed device fixtures, async matchers, failure evidence, and cleanup-failure preservation are covered; reporter UI remains a consumer concern. |
 | Fixture-based testing | In progress | Versioned synthetic JSON fixtures plus provenance-tagged React Native and SwiftUI captures work; broader corpus is pending. |
-| Real-simulator end-to-end coverage | In progress | Public SwiftUI and React Native sample apps share a small control contract; opt-in React Native cases validate both a single app and a real Alice-to-Bob flow across two simulators. |
+| Real-simulator end-to-end coverage | In progress | Public SwiftUI and React Native samples share a small control contract; gated flows validate native SwiftUI controls, a single React Native app, and real Alice-to-Bob delivery across two simulators. |
+| Release preparation | Awaiting maintainer decisions | Consumer docs, changelog, package-content verification, and a no-publish release checklist are complete. |
+
+### Latest validation
+
+On 2026-07-13, the default simulator-free suite passed with 26 tests, one
+intentional expected failure, and three gated e2e tests skipped. Typecheck and
+production build also passed. The opt-in SwiftUI e2e flow passed live against
+AXe 1.7.1 on the validated iOS 26.5 simulator environment; the React Native
+two-device flow was previously validated against the same matrix.
 
 ## Design decisions already made
 
@@ -225,21 +234,17 @@ Acceptance criteria:
 
 ## Near-term order of work
 
-The closure tracks through compatibility are complete. The next active track
-is release readiness, kept separate from new locator or interaction work.
+The engineering closure tracks through compatibility are complete. No new
+feature track is active while release readiness awaits decisions outside the
+repository.
 
-1. **Package contract.** Review the exports, package metadata, and install
-   shape from a consumer project; keep the samples and e2e-only code out of the
-   published artifact.
-2. **Consumer documentation.** Turn the existing examples into a short
-   getting-started path and a public API reference with clear simulator and
-   lifecycle ownership boundaries.
-3. **Maintainer decisions.** Choose a license, confirm package ownership and
-   availability, then add changelog and release automation. These need an
-   explicit maintainer decision before anything is published.
-4. **Fixture-led expansion.** Add live SwiftUI coverage, then screenshot,
+1. **Maintainer gate.** Choose a license, confirm npm organization/owner and
+   the final package name, provide public repository/issue URLs, and choose
+   release authority and automation. See `docs/release-checklist.md`.
+2. **Publish preparation.** Once those inputs exist, add the approved package
+   metadata, license, and release workflow; re-run the package and compatibility
+   checks before an authorized maintainer publishes.
+3. **Fixture-led expansion.** After the release gate, add screenshot,
    orientation, alert, UIKit, and deeper-container cases only when a public
    capture demonstrates a needed interaction. Do not add broad query
    refinements or gestures speculatively.
-5. **Release readiness.** Complete API documentation and examples, choose a
-   license and publishing owner, then add changelog and release automation.
