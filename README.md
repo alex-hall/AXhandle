@@ -7,8 +7,6 @@ This project is intentionally app-agnostic. It wraps AXe behind typed
 primitives, then provides chainable accessibility locators, retrying
 assertions, and Vitest integration.
 
-The current work plan is in `docs/plans/initial-roadmap.md`.
-
 ## Getting started
 
 AXe TypeScript runs on macOS against the iOS Simulator. Install a supported
@@ -30,65 +28,28 @@ await thread.findByRole("button", { name: "Send" }).click();
 await expect(thread.findByText("Delivered")).toBeVisible();
 ```
 
-## Development status
+## What it provides
 
-This is an initial scaffold. The first vertical slice includes:
+AXe TypeScript provides:
 
 - a typed AXe driver boundary;
 - a normalised accessibility tree;
 - strict, chainable `findBy…` locators with `first()`, `second()`, and `nth()`;
-- a fixture driver for simulator-free tests; and
-- async Vitest matchers.
+- a fixture driver for fast simulator-free tests;
+- async Vitest matchers and structured failure evidence; and
+- named, independently composable devices for multi-simulator flows.
 
-The package deliberately has no simulator requirement for its default test
-suite. Real AXe/simulator end-to-end tests are opt-in.
-
-## Public integration samples
-
-The workspace includes two deliberately small, public iOS samples outside the
-published package: a SwiftUI app in `apps/integration-sample-app` and a bare
-React Native app in `apps/react-native-sample-app`. They exercise the same
-composer, button, switch, and navigation control contract.
-
-The React Native sample's captured initial AXe tree is a regular fixture, so
-its locator behavior is covered by the default simulator-free suite. Live
-end-to-end coverage is separately gated. After building, installing, and launching the
-sample app on a booted simulator, run:
-
-```sh
-AXE_E2E=1 AXE_E2E_UDID=<udid> npm run test:e2e
-```
-
-The live test waits for an accessibility condition rather than sleeping. It
-also puts its public sample form into a known state before exercising it, but
-the library itself intentionally does not own app launch or simulator reset.
-
-The flagship peer flow uses two separately booted simulators, each with the
-same public React Native sample installed and launched. Its local relay is
-started and reset by the end-to-end suite; it has no external service or
-credentials:
-
-```sh
-AXE_E2E=1 \
-AXE_E2E_ALICE_UDID=<alice-udid> \
-AXE_E2E_BOB_UDID=<bob-udid> \
-npm run test:e2e
-```
-
-The test selects Alice and Bob in their respective app instances, sends an
-actual message from Alice, and waits for Bob's accessible incoming-message
-state. Do not also set `AXE_E2E_UDID` for this pair mode.
+Your normal test suite can use fixtures without a booted simulator. Simulator
+tests remain ordinary opt-in Vitest tests that you configure with your own app
+lifecycle and devices.
 
 ## Fixtures
 
 Fixture tests use a versioned JSON envelope. Its `tree` is the untouched value
-from `axe describe-ui`; metadata records where a captured fixture came from.
-This allows parser and locator behavior to be tested without a booted
-simulator, while preserving provenance when end-to-end fixtures are added.
-
-`tests/fixtures/axe-fixture.schema.json` documents the envelope. Only synthetic
-fixtures or captures from this repository's own purpose-built sample app belong
-in the project.
+from `axe describe-ui`; metadata records whether it is synthetic or captured,
+plus the AXe/Xcode/runtime provenance when available. The fixture helper
+validates this envelope at runtime, so parser and locator behavior can be
+tested without a booted simulator.
 
 ## Vitest setup
 
