@@ -1,0 +1,45 @@
+{
+  "AXRole": "Application",
+  "AXChildren": [
+    {
+      "AXRole": "Group",
+      "AXUniqueId": "thread-a",
+      "AXLabel": "Alice thread",
+      "frame": { "x": 0, "y": 0, "width": 390, "height": 300 },
+      "AXChildren": [
+        {
+          "AXRole": "StaticText",
+          "AXLabel": "Hello",
+          "frame": { "x": 16, "y": 16, "width": 100, "height": 30 }
+        },
+        {
+          "AXRole": "Button",
+          "AXUniqueId": "send-a",
+          "AXLabel": "Send",
+          "AXEnabled": true,
+          "frame": { "x": 320, "y": 240, "width": 54, "height": 44 }
+        }
+      ]
+    },
+    {
+      "AXRole": "Group",
+      "AXUniqueId": "thread-b",
+      "AXLabel": "Bob thread",
+      "frame": { "x": 0, "y": 320, "width": 390, "height": 300 },
+      "AXChildren": [
+        {
+          "AXRole": "StaticText",
+          "AXLabel": "Hello",
+          "frame": { "x": 16, "y": 336, "width": 100, "height": 30 }
+        },
+        {
+          "AXRole": "Button",
+          "AXUniqueId": "send-b",
+          "AXLabel": "Send",
+          "AXEnabled": false,
+          "frame": { "x": 320, "y": 560, "width": 54, "height": 44 }
+        }
+      ]
+    }
+  ]
+}
