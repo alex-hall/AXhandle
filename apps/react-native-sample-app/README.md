@@ -5,7 +5,7 @@ TypeScript live end-to-end suite. It mirrors the SwiftUI integration sample’s
 composer, input, button, toggle, and details-flow contract while exercising
 React Native’s iOS accessibility bridge.
 
-It is not part of the published `axe-typescript` package. Default library tests
+It is not part of the published `axhandle` package. Default library tests
 remain simulator-free.
 
 The sample currently uses React Native 0.83 because it supports the repository's

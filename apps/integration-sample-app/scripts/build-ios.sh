@@ -2,7 +2,7 @@
 set -eu
 
 root_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-build_dir="$root_dir/build/AXeTypeScriptSample.app"
+build_dir="$root_dir/build/AXhandleSample.app"
 sdk_path=$(xcrun --sdk iphonesimulator --show-sdk-path)
 target=${IOS_SIMULATOR_TARGET:-arm64-apple-ios18.0-simulator}
 
@@ -15,7 +15,7 @@ xcrun --sdk iphonesimulator swiftc \
   -sdk "$sdk_path" \
   -framework SwiftUI \
   -framework UIKit \
-  "$root_dir/Sources/AXeTypeScriptSampleApp.swift" \
-  -o "$build_dir/AXeTypeScriptSample"
+  "$root_dir/Sources/AXhandleSampleApp.swift" \
+  -o "$build_dir/AXhandleSample"
 
 cp "$root_dir/Info.plist" "$build_dir/Info.plist"

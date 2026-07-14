@@ -42,7 +42,7 @@ describe("AxeCliDriver", () => {
   });
 
   it("keeps a missing AXe executable actionable", async () => {
-    const binary = "/tmp/axe-typescript-missing-binary";
+    const binary = "/tmp/axhandle-missing-binary";
     const runner = new NodeAxeCommandRunner(binary);
     let received: unknown;
 

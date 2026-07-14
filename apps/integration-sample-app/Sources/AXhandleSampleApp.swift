@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 
 @main
-struct AXeTypeScriptSampleApp: App {
+struct AXhandleSampleApp: App {
   var body: some Scene {
     WindowGroup {
       ContentView()

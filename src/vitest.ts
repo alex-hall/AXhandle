@@ -152,7 +152,7 @@ export interface AxeCleanupFailure {
   error: unknown;
 }
 
-const cleanupFailuresKey = Symbol("axe-typescript.cleanup-failures");
+const cleanupFailuresKey = Symbol("axhandle.cleanup-failures");
 
 /** Returns cleanup failures attached to the primary lifecycle error, if any. */
 export const getAxeCleanupFailures = (error: unknown): readonly AxeCleanupFailure[] => {

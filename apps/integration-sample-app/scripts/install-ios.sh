@@ -7,8 +7,8 @@ if [ -z "${SIMULATOR_UDID:-}" ]; then
 fi
 
 root_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-app_path="$root_dir/build/AXeTypeScriptSample.app"
-bundle_id=dev.axe-typescript.integration-sample-app
+app_path="$root_dir/build/AXhandleSample.app"
+bundle_id=dev.axhandle.integration-sample-app
 
 if [ ! -d "$app_path" ]; then
   echo "Build the integration sample app before installing it." >&2

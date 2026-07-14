@@ -1,4 +1,4 @@
-# AXe TypeScript
+# AXhandle
 
 A TypeScript-first, promise-based testing harness for iOS Simulator automation
 through [cameroncooke/AXe](https://github.com/cameroncooke/AXe).
@@ -9,12 +9,12 @@ assertions, and Vitest integration.
 
 ## Getting started
 
-AXe TypeScript runs on macOS against the iOS Simulator. Install a supported
+AXhandle runs on macOS against the iOS Simulator. Install a supported
 AXe CLI version on `PATH`, then add this package and Vitest to the consuming
 project:
 
 ```sh
-npm install --save-dev axe-typescript vitest
+npm install --save-dev axhandle vitest
 ```
 
 Register the matchers and create a project-specific test fixture as shown in
@@ -30,7 +30,7 @@ await expect(thread.findByText("Delivered")).toBeVisible();
 
 ## What it provides
 
-AXe TypeScript provides:
+AXhandle provides:
 
 - a typed AXe driver boundary;
 - a normalised accessibility tree;
@@ -50,8 +50,8 @@ Install the matchers once in a Vitest setup file, then export a project-specific
 ```ts
 // test/support/axe.ts
 import { expect } from "vitest";
-import { AxeCliDriver, Device } from "axe-typescript";
-import { axeMatchers, createAxeTest } from "axe-typescript/vitest";
+import { AxeCliDriver, Device } from "axhandle";
+import { axeMatchers, createAxeTest } from "axhandle/vitest";
 
 expect.extend(axeMatchers);
 
@@ -124,7 +124,7 @@ and a command log when a test fails. Consumers own the destination through an
 artifact sink:
 
 ```ts
-import { InMemoryArtifactSink } from "axe-typescript";
+import { InMemoryArtifactSink } from "axhandle";
 
 const evidence = new InMemoryArtifactSink();
 
@@ -244,7 +244,7 @@ exercise screenshot capture. It does not boot a simulator or launch, terminate,
 or reset an app.
 
 ```ts
-import { diagnoseAxe } from "axe-typescript";
+import { diagnoseAxe } from "axhandle";
 
 const report = await diagnoseAxe({
   udid: process.env.PRIMARY_SIMULATOR_UDID!,
@@ -277,7 +277,7 @@ permissions. Consumers that want Xcode simulator control can opt into the
 shell-free `XcrunSimulatorController` instead:
 
 ```ts
-import { XcrunSimulatorController } from "axe-typescript";
+import { XcrunSimulatorController } from "axhandle";
 
 const simulator = new XcrunSimulatorController();
 await simulator.install(udid, "/path/to/Example.app");
@@ -296,3 +296,11 @@ non-match; it is not an AXe capability.
 This is a public open-source project. Do not add private application code,
 screenshots, accessibility captures, logs, credentials, service URLs, or test
 flows. Read `Agent.MD` before contributing.
+
+## Trademarks
+
+AXhandle is an independent open-source project built on
+[cameroncooke/AXe](https://github.com/cameroncooke/AXe). It is not affiliated
+with, endorsed by, or associated with Deque Systems or its axe® accessibility
+products, nor with Apple Inc. "AX" refers to the prefix Apple uses for its
+accessibility APIs.

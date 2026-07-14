@@ -1,8 +1,8 @@
 {
-  "name": "@axe-typescript/integration-sample-app",
+  "name": "@axhandle/integration-sample-app",
   "version": "0.0.0",
   "private": true,
-  "description": "Public iOS accessibility surface used by AXe TypeScript end-to-end tests.",
+  "description": "Public iOS accessibility surface used by AXhandle end-to-end tests.",
   "scripts": {
     "build": "./scripts/build-ios.sh",
     "app:install": "./scripts/install-ios.sh"

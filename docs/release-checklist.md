@@ -17,7 +17,7 @@ or pushes anything.
 
 ## Publish gate — maintainer decisions required
 
-- Confirm npm organization/owner and whether `axe-typescript` is the final
+- Confirm npm organization/owner and whether `axhandle` is the final
   public package name.
 - Set the initial semantic version, repository URL, issue tracker, and package
   metadata once those public destinations exist.

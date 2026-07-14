@@ -1,14 +1,14 @@
 {
-  "name": "@axe-typescript/react-native-sample-app",
+  "name": "@axhandle/react-native-sample-app",
   "version": "0.0.1",
   "private": true,
   "scripts": {
     "ios": "react-native run-ios",
     "pods": "bundle install && (cd ios && bundle exec pod install)",
     "bundle:ios": "react-native bundle --entry-file index.js --platform ios --dev false --bundle-output ios/main.jsbundle --assets-dest ios",
-    "build:ios": "npm run bundle:ios && xcodebuild -workspace ios/AXeTypeScriptReactNativeSample.xcworkspace -scheme AXeTypeScriptReactNativeSample -configuration Release -sdk iphonesimulator -derivedDataPath build/ios build",
+    "build:ios": "npm run bundle:ios && xcodebuild -workspace ios/AXhandleReactNativeSample.xcworkspace -scheme AXhandleReactNativeSample -configuration Release -sdk iphonesimulator -derivedDataPath build/ios build",
     "build": "npm run build:ios",
-    "app:install": "test -n \"$SIMULATOR_UDID\" && xcrun simctl install \"$SIMULATOR_UDID\" build/ios/Build/Products/Release-iphonesimulator/AXeTypeScriptReactNativeSample.app && xcrun simctl launch \"$SIMULATOR_UDID\" dev.axetypescript.sample",
+    "app:install": "test -n \"$SIMULATOR_UDID\" && xcrun simctl install \"$SIMULATOR_UDID\" build/ios/Build/Products/Release-iphonesimulator/AXhandleReactNativeSample.app && xcrun simctl launch \"$SIMULATOR_UDID\" dev.axhandle.sample",
     "lint": "eslint .",
     "start": "react-native start",
     "test": "jest"

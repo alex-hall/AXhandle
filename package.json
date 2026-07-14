@@ -1,8 +1,26 @@
 {
-  "name": "axe-typescript",
-  "version": "0.0.0",
-  "private": true,
+  "name": "axhandle",
+  "version": "0.1.0",
   "description": "A TypeScript and Vitest harness for iOS Simulator automation through AXe.",
+  "keywords": [
+    "axe",
+    "ios",
+    "ios-simulator",
+    "e2e",
+    "testing",
+    "vitest",
+    "accessibility",
+    "automation"
+  ],
+  "author": "Alex Hall <me@jalexhall.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alex-hall/axhandle.git"
+  },
+  "homepage": "https://github.com/alex-hall/axhandle#readme",
+  "bugs": {
+    "url": "https://github.com/alex-hall/axhandle/issues"
+  },
   "license": "MIT",
   "type": "module",
   "packageManager": "npm@10.1.0",
@@ -32,11 +50,12 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "build:app": "turbo run build --filter=@axe-typescript/integration-sample-app",
-    "build:react-native-app": "turbo run build --filter=@axe-typescript/react-native-sample-app",
-    "app:install": "turbo run app:install --filter=@axe-typescript/integration-sample-app",
-    "react-native-app:install": "turbo run app:install --filter=@axe-typescript/react-native-sample-app",
-    "react-native-app:pods": "npm --workspace @axe-typescript/react-native-sample-app run pods",
+    "prepublishOnly": "npm run typecheck && npm run test && npm run build",
+    "build:app": "turbo run build --filter=@axhandle/integration-sample-app",
+    "build:react-native-app": "turbo run build --filter=@axhandle/react-native-sample-app",
+    "app:install": "turbo run app:install --filter=@axhandle/integration-sample-app",
+    "react-native-app:install": "turbo run app:install --filter=@axhandle/react-native-sample-app",
+    "react-native-app:pods": "npm --workspace @axhandle/react-native-sample-app run pods",
     "test": "vitest run",
     "test:e2e": "vitest run tests/e2e --maxWorkers=1",
     "test:watch": "vitest",

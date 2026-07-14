@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://axe-typescript.dev/schemas/axe-fixture-v1.json",
-  "title": "AXe TypeScript fixture v1",
+  "$id": "https://axhandle.dev/schemas/axe-fixture-v1.json",
+  "title": "AXhandle fixture v1",
   "type": "object",
   "additionalProperties": false,
   "required": ["formatVersion", "metadata", "tree"],

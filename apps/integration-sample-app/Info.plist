@@ -5,15 +5,15 @@
   <key>CFBundleDevelopmentRegion</key>
   <string>en</string>
   <key>CFBundleDisplayName</key>
-  <string>AXe TypeScript Sample</string>
+  <string>AXhandle Sample</string>
   <key>CFBundleExecutable</key>
-  <string>AXeTypeScriptSample</string>
+  <string>AXhandleSample</string>
   <key>CFBundleIdentifier</key>
-  <string>dev.axe-typescript.integration-sample-app</string>
+  <string>dev.axhandle.integration-sample-app</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
-  <string>AXeTypeScriptSample</string>
+  <string>AXhandleSample</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
