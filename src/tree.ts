@@ -53,7 +53,7 @@ const normalizeFrame = (value: unknown): Frame | undefined => {
 };
 
 const childValues = (record: JsonRecord): unknown[] => {
-  const value = record.AXChildren ?? record.children;
+  const value = record["AXChildren"] ?? record["children"];
   return Array.isArray(value) ? value : [];
 };
 
@@ -70,13 +70,13 @@ export function normalizeAxeNode(raw: unknown): AccessibilityNode {
     // AXe currently exposes both a low-level role (for example `AXButton`)
     // and the user-facing accessibility role (`button`). Prefer the latter so
     // locator roles remain stable and match iOS accessibility terminology.
-    role: (firstString(raw.role_description, raw.AXRole, raw.role, raw.type) ?? "Unknown").toLowerCase(),
-    id: firstString(raw.AXUniqueId, raw.AXIdentifier, raw.id),
-    label: firstString(raw.AXLabel, raw.label, raw.name),
-    value: firstValue(raw.AXValue, raw.value),
-    enabled: firstBoolean(raw.AXEnabled, raw.enabled),
-    visible: firstBoolean(raw.AXVisible, raw.visible, raw.isVisible) ?? true,
-    frame: normalizeFrame(raw.frame ?? raw.AXFrame),
+    role: (firstString(raw["role_description"], raw["AXRole"], raw["role"], raw["type"]) ?? "Unknown").toLowerCase(),
+    id: firstString(raw["AXUniqueId"], raw["AXIdentifier"], raw["id"]),
+    label: firstString(raw["AXLabel"], raw["label"], raw["name"]),
+    value: firstValue(raw["AXValue"], raw["value"]),
+    enabled: firstBoolean(raw["AXEnabled"], raw["enabled"]),
+    visible: firstBoolean(raw["AXVisible"], raw["visible"], raw["isVisible"]) ?? true,
+    frame: normalizeFrame(raw["frame"] ?? raw["AXFrame"]),
     children: []
   };
 
@@ -128,7 +128,7 @@ export function normalizeAxeTree(raw: unknown): AccessibilityTree {
     throw new TypeError("Expected an AXe accessibility tree object or array.");
   }
 
-  const root = raw.root ?? raw.AXRoot ?? raw;
+  const root = raw["root"] ?? raw["AXRoot"] ?? raw;
   return { root: normalizeAxeNode(root) };
 }
 
