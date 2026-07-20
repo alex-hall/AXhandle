@@ -225,7 +225,10 @@ Evidence is collected before `reset`. Capture and reset failures do not replace
 the original test failure.
 
 `DirectoryArtifactSink` writes each artifact as a file in a directory of your
-choice — the production default for retained evidence. For screen recordings,
+choice — the production default for retained evidence. File names carry the
+device name, and repeated captures (a second failing test, or `capture:
+"always"`) get numeric suffixes rather than overwriting earlier evidence.
+For screen recordings,
 `SimulatorVideoRecorder` wraps `simctl io recordVideo` with the lifecycle a
 record-always policy needs: `start()` before the test, `discard()` on pass,
 `stop()` on failure to keep the file. Finalization is SIGINT-only — any other
