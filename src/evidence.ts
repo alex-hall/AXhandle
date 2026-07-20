@@ -39,33 +39,40 @@ export class InMemoryArtifactSink implements ArtifactSink {
  * Writes each artifact as a file in one directory — the production default
  * for retaining failure evidence. Screenshot artifacts are already on disk at
  * their own path, so only JSON and text artifacts need materializing here.
+ *
+ * One sink typically serves a whole suite, receiving one capture per device
+ * per failing test — so file names carry the device name, and a repeated
+ * device/kind pair gets a numeric suffix instead of clobbering the earlier
+ * capture. Retained evidence must never silently self-destruct.
  */
 export class DirectoryArtifactSink implements ArtifactSink {
-  private captureErrors = 0;
+  private readonly writes = new Map<string, number>();
 
   constructor(private readonly directory: string) {
     mkdirSync(directory, { recursive: true });
   }
 
   async write(artifact: AxeArtifact): Promise<void> {
-    switch (artifact.kind) {
-      case "screenshot":
-        return;
-      case "capture-error":
-        this.captureErrors += 1;
-        writeFileSync(
-          join(this.directory, `capture-error-${this.captureErrors}.txt`),
-          artifact.message
-        );
-        return;
-      default:
-        writeFileSync(
-          join(this.directory, `${artifact.kind}.json`),
-          JSON.stringify(artifact.body, null, 2)
-        );
+    if (artifact.kind === "screenshot") return;
+
+    const base = `${fileSafe(artifact.device)}-${artifact.kind}`;
+    if (artifact.kind === "capture-error") {
+      writeFileSync(this.nextPath(base, "txt"), artifact.message);
+      return;
     }
+    writeFileSync(this.nextPath(base, "json"), JSON.stringify(artifact.body, null, 2));
+  }
+
+  private nextPath(base: string, extension: string): string {
+    const count = (this.writes.get(base) ?? 0) + 1;
+    this.writes.set(base, count);
+    const suffix = count === 1 ? "" : `-${count}`;
+    return join(this.directory, `${base}${suffix}.${extension}`);
   }
 }
+
+/** Device names become file-name segments; never let them traverse paths. */
+const fileSafe = (value: string): string => value.replace(/[^\w.-]+/g, "-");
 
 export interface CaptureDeviceEvidenceOptions {
   /** A path factory opt-in; screenshots are never captured implicitly. */
