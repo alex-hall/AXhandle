@@ -1,17 +1,46 @@
 import type { Device } from "./device.js";
+import { poll } from "./poll.js";
 import { accessibilityPath, descendants, nodeDescription } from "./tree.js";
 import type {
   AccessibilityNode,
   AccessibilityTree,
   FillOptions,
-  WaitOptions
+  WaitOptions,
 } from "./types.js";
 
 export type LocatorQuery =
   | { kind: "testId"; value: string }
-  | { kind: "text"; value: string }
-  | { kind: "label"; value: string }
+  | { kind: "text"; value: string; exact?: boolean }
+  | { kind: "label"; value: string; exact?: boolean }
   | { kind: "role"; role: string; name?: string };
+
+export interface TextQueryOptions {
+  /**
+   * `exact: false` switches to normalized substring matching: case-insensitive,
+   * with no-break spaces (U+00A0) treated as ordinary spaces. React Native
+   * joins composite labels with no-break spaces, so an exact query typed with
+   * a regular space can silently never match rendered text.
+   */
+  exact?: boolean;
+}
+
+/** @deprecated Use {@link TapOptions}. Removed in 1.0. */
+export type ClickOptions = TapOptions;
+
+export interface TapOptions extends WaitOptions {
+  /**
+   * Arrival condition: a locator that must be present for the tap to count
+   * as done. The tap is retried until it is. This absorbs the ways a
+   * "successful" tap can do nothing — a control rendered before its touch
+   * handler attached, a first-run tooltip eating the tap, an overlay above
+   * the target — without blind sleeps.
+   */
+  until?: Locator;
+  /** Maximum taps when `until` is set (default 3). */
+  attempts?: number;
+  /** How long to poll for `until` after each tap before retapping (default: the action timeout). */
+  settleTimeout?: number;
+}
 
 interface LocatorSegment {
   query: LocatorQuery;
@@ -35,7 +64,7 @@ export class LocatorTimeoutError extends Error {
 export class Locator {
   private constructor(
     private readonly device: Device,
-    private readonly segments: readonly LocatorSegment[]
+    private readonly segments: readonly LocatorSegment[],
   ) {}
 
   static from(device: Device, query: LocatorQuery): Locator {
@@ -46,12 +75,12 @@ export class Locator {
     return this.append({ kind: "testId", value });
   }
 
-  findByText(value: string): Locator {
-    return this.append({ kind: "text", value });
+  findByText(value: string, options: TextQueryOptions = {}): Locator {
+    return this.append(textQuery("text", value, options));
   }
 
-  findByLabel(value: string): Locator {
-    return this.append({ kind: "label", value });
+  findByLabel(value: string, options: TextQueryOptions = {}): Locator {
+    return this.append(textQuery("label", value, options));
   }
 
   findByRole(role: string, options: { name?: string } = {}): Locator {
@@ -80,12 +109,17 @@ export class Locator {
 
     return new Locator(this.device, [
       ...this.segments.slice(0, -1),
-      { ...last, index }
+      { ...last, index },
     ]);
   }
 
-  async click(options?: WaitOptions): Promise<void> {
-    await this.device.click(this, options);
+  async tap(options?: TapOptions): Promise<void> {
+    await this.device.tap(this, options);
+  }
+
+  /** @deprecated Use {@link tap} — iOS has taps, not clicks. Removed in 1.0. */
+  async click(options?: TapOptions): Promise<void> {
+    await this.tap(options);
   }
 
   async type(text: string, options?: WaitOptions): Promise<void> {
@@ -115,76 +149,138 @@ export class Locator {
     return this.device.count(this);
   }
 
+  /**
+   * Non-strict presence: is anything matching on screen at all? Unlike
+   * resolve(), ambiguity anywhere in the chain is not an error — this answers
+   * the screen-detection question ("which screen am I on?"), not the
+   * interaction question ("which one element do I mean?").
+   */
+  async exists(): Promise<boolean> {
+    return (await this.device.presenceCount(this)) > 0;
+  }
+
   async waitForVisible(options?: WaitOptions): Promise<AccessibilityNode> {
     return this.waitFor((node) => node.visible, options);
   }
 
+  /** Waits until nothing matching remains on screen (presence semantics). */
+  async waitForGone(options: WaitOptions = {}): Promise<void> {
+    const timeout = options.timeout ?? this.device.timeouts.assertion;
+    const interval = options.interval ?? this.device.timeouts.interval;
+    let lastCount = -1;
+
+    await poll(
+      async () => (lastCount = await this.device.presenceCount(this)) === 0,
+      {
+        timeout,
+        interval,
+        clock: this.device.clock,
+        onTimeout: () =>
+          new LocatorTimeoutError(
+            `${this.describe()} still had ${lastCount} ${pluralize("match", lastCount)} after ${timeout}ms.`,
+          ),
+      },
+    );
+  }
+
   async waitFor(
     predicate: (node: AccessibilityNode) => boolean,
-    options: WaitOptions = {}
+    options: WaitOptions = {},
   ): Promise<AccessibilityNode> {
     const timeout = options.timeout ?? this.device.timeouts.assertion;
     const interval = options.interval ?? this.device.timeouts.interval;
-    const deadline = this.device.clock.now() + timeout;
+    let result: AccessibilityNode | undefined;
     let lastError: unknown;
 
-    while (true) {
-      try {
-        const node = await this.resolve();
-        if (predicate(node)) return node;
-        lastError = new LocatorResolutionError(
-          `${this.describe()} resolved to ${nodeDescription(node)}, but the expected state was not met.`
-        );
-      } catch (error) {
-        lastError = error;
-      }
+    await poll(
+      async () => {
+        try {
+          const node = await this.resolve();
+          if (predicate(node)) {
+            result = node;
+            return true;
+          }
+          lastError = new LocatorResolutionError(
+            `${this.describe()} resolved to ${nodeDescription(node)}, but the expected state was not met.`,
+          );
+        } catch (error) {
+          lastError = error;
+        }
+        return false;
+      },
+      {
+        timeout,
+        interval,
+        clock: this.device.clock,
+        onTimeout: () => {
+          const reason =
+            lastError instanceof Error ? lastError.message : String(lastError);
+          return new LocatorTimeoutError(
+            `${this.describe()} did not satisfy its condition within ${timeout}ms. ${reason}`,
+          );
+        },
+      },
+    );
 
-      if (this.device.clock.now() >= deadline) {
-        const reason = lastError instanceof Error ? lastError.message : String(lastError);
-        throw new LocatorTimeoutError(`${this.describe()} did not satisfy its condition within ${timeout}ms. ${reason}`);
-      }
-
-      await this.device.clock.sleep(interval);
+    if (!result) {
+      throw new LocatorResolutionError(
+        `${this.describe()} produced no node after a satisfied wait.`,
+      );
     }
+    return result;
   }
 
-  async waitForCount(expected: number, options: WaitOptions = {}): Promise<number> {
-    return this.waitForCountWhere((actual) => actual === expected, options, expected);
+  async waitForCount(
+    expected: number,
+    options: WaitOptions = {},
+  ): Promise<number> {
+    return this.waitForCountWhere(
+      (actual) => actual === expected,
+      options,
+      expected,
+    );
   }
 
   /** @internal Shared polling primitive for count-based matchers. */
   async waitForCountWhere(
     predicate: (actual: number) => boolean,
     options: WaitOptions = {},
-    expected?: number
+    expected?: number,
   ): Promise<number> {
     const timeout = options.timeout ?? this.device.timeouts.assertion;
     const interval = options.interval ?? this.device.timeouts.interval;
-    const deadline = this.device.clock.now() + timeout;
     let actual = -1;
 
-    while (true) {
-      actual = await this.count();
-      if (predicate(actual)) return actual;
+    await poll(
+      async () => {
+        actual = await this.count();
+        return predicate(actual);
+      },
+      {
+        timeout,
+        interval,
+        clock: this.device.clock,
+        onTimeout: () =>
+          new LocatorTimeoutError(
+            `${this.describe()} had ${actual} ${pluralize("match", actual)}${expected === undefined ? "" : ` instead of ${expected}`} within ${timeout}ms.`,
+          ),
+      },
+    );
 
-      if (this.device.clock.now() >= deadline) {
-        throw new LocatorTimeoutError(
-          `${this.describe()} had ${actual} ${pluralize("match", actual)}${expected === undefined ? "" : ` instead of ${expected}`} within ${timeout}ms.`
-        );
-      }
-
-      await this.device.clock.sleep(interval);
-    }
+    return actual;
   }
 
   /** @internal Resolves this deferred query against one fresh tree. */
   resolveFrom(tree: AccessibilityTree): AccessibilityNode {
     const matches = this.matchesFrom(tree);
     if (matches.length !== 1) {
-      throw new LocatorResolutionError(buildStrictnessMessage(this.describe(), matches, tree.root));
+      throw new LocatorResolutionError(
+        buildStrictnessMessage(this.describe(), matches, tree.root),
+      );
     }
     const result = matches[0];
-    if (!result) throw new LocatorResolutionError(`${this.describe()} found no element.`);
+    if (!result)
+      throw new LocatorResolutionError(`${this.describe()} found no element.`);
     return result;
   }
 
@@ -201,7 +297,7 @@ export class Locator {
         const selected = matches[segment.index];
         if (!selected) {
           throw new LocatorResolutionError(
-            `${this.describe()} requested ${ordinal(segment.index)} match, but only ${matches.length} ${pluralize("match", matches.length)} found.`
+            `${this.describe()} requested ${ordinal(segment.index)} match, but only ${matches.length} ${pluralize("match", matches.length)} found.`,
           );
         }
         roots = [selected];
@@ -209,7 +305,9 @@ export class Locator {
       }
 
       if (segmentIndex < this.segments.length - 1 && matches.length !== 1) {
-        throw new LocatorResolutionError(buildStrictnessMessage(this.describe(), matches, tree.root));
+        throw new LocatorResolutionError(
+          buildStrictnessMessage(this.describe(), matches, tree.root),
+        );
       }
       roots = matches;
     }
@@ -217,9 +315,40 @@ export class Locator {
     return roots;
   }
 
+  /**
+   * @internal Presence resolution: every segment keeps ALL of its matches and
+   * an empty segment short-circuits to []. No strictness anywhere — used by
+   * exists()/waitForGone()/firstPresent(), never for interactions.
+   */
+  presenceMatches(tree: AccessibilityTree): AccessibilityNode[] {
+    let roots = [tree.root];
+
+    for (const segment of this.segments) {
+      const matches = dedupe(
+        roots
+          .flatMap((root) => descendants(root))
+          .filter((node) => matchesQuery(node, segment.query)),
+      );
+
+      if (segment.index !== undefined) {
+        const selected = matches[segment.index];
+        roots = selected ? [selected] : [];
+      } else {
+        roots = matches;
+      }
+
+      if (roots.length === 0) return [];
+    }
+
+    return roots;
+  }
+
   describe(): string {
     return this.segments
-      .map(({ query, index }) => `${queryDescription(query)}${index === undefined ? "" : `.${ordinal(index)}`}`)
+      .map(
+        ({ query, index }) =>
+          `${queryDescription(query)}${index === undefined ? "" : `.${ordinal(index)}`}`,
+      )
       .join(".findBy");
   }
 
@@ -228,27 +357,68 @@ export class Locator {
   }
 }
 
-const matchesQuery = (node: AccessibilityNode, query: LocatorQuery): boolean => {
+const textQuery = (
+  kind: "text" | "label",
+  value: string,
+  options: TextQueryOptions,
+): LocatorQuery =>
+  options.exact === false ? { kind, value, exact: false } : { kind, value };
+
+/**
+ * Normalization for `exact: false` queries: case-insensitive, with no-break
+ * spaces treated as ordinary spaces (React Native joins composite labels with
+ * U+00A0, which is indistinguishable from a space in any error message).
+ */
+const normalizeForContains = (value: string): string =>
+  value.replaceAll("\u00a0", " ").toLowerCase();
+
+const containsNormalized = (
+  haystack: string | undefined,
+  needle: string,
+): boolean =>
+  haystack !== undefined &&
+  normalizeForContains(haystack).includes(normalizeForContains(needle));
+
+const matchesQuery = (
+  node: AccessibilityNode,
+  query: LocatorQuery,
+): boolean => {
   switch (query.kind) {
     case "testId":
       return node.id === query.value;
     case "text":
+      if (query.exact === false) {
+        return (
+          containsNormalized(node.label, query.value) ||
+          (node.value !== undefined &&
+            containsNormalized(String(node.value), query.value))
+        );
+      }
       return node.label === query.value || node.value === query.value;
     case "label":
+      if (query.exact === false)
+        return containsNormalized(node.label, query.value);
       return node.label === query.value;
     case "role":
-      return node.role === query.role && (query.name === undefined || node.label === query.name);
+      return (
+        node.role === query.role &&
+        (query.name === undefined || node.label === query.name)
+      );
   }
 };
+
+const dedupe = (nodes: AccessibilityNode[]): AccessibilityNode[] => [
+  ...new Set(nodes),
+];
 
 const queryDescription = (query: LocatorQuery): string => {
   switch (query.kind) {
     case "testId":
       return `findByTestId(${JSON.stringify(query.value)})`;
     case "text":
-      return `findByText(${JSON.stringify(query.value)})`;
+      return `findByText(${JSON.stringify(query.value)}${query.exact === false ? ", { exact: false }" : ""})`;
     case "label":
-      return `findByLabel(${JSON.stringify(query.value)})`;
+      return `findByLabel(${JSON.stringify(query.value)}${query.exact === false ? ", { exact: false }" : ""})`;
     case "role":
       return `findByRole(${JSON.stringify(query.role)}${query.name ? `, { name: ${JSON.stringify(query.name)} }` : ""})`;
   }
@@ -257,9 +427,10 @@ const queryDescription = (query: LocatorQuery): string => {
 const buildStrictnessMessage = (
   locator: string,
   matches: AccessibilityNode[],
-  root: AccessibilityNode
+  root: AccessibilityNode,
 ): string => {
-  if (matches.length === 0) return `${locator} found no matching accessible elements.`;
+  if (matches.length === 0)
+    return `${locator} found no matching accessible elements.`;
 
   const candidates = matches
     .map((node, index) => {
@@ -272,8 +443,12 @@ const buildStrictnessMessage = (
 
 const ordinal = (index: number): string => {
   const number = index + 1;
-  const suffix = number % 100 >= 11 && number % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][number % 10] ?? "th";
+  const suffix =
+    number % 100 >= 11 && number % 100 <= 13
+      ? "th"
+      : (["th", "st", "nd", "rd"][number % 10] ?? "th");
   return `${number}${suffix}`;
 };
 
-const pluralize = (word: string, count: number): string => (count === 1 ? word : `${word}es`);
+const pluralize = (word: string, count: number): string =>
+  count === 1 ? word : `${word}es`;

@@ -41,6 +41,49 @@ describe("AxeCliDriver", () => {
     ]);
   });
 
+  it("builds label-tap and swipe invocations with seconds at the CLI boundary", async () => {
+    const runner = new RecordingRunner();
+    const driver = new AxeCliDriver({ udid: "SIMULATOR-UDID", runner });
+
+    await driver.tapLabel("Allow", 5_000);
+    await driver.tapLabel("Allow");
+    await driver.swipe({ startX: 200, startY: 650, endX: 200, endY: 250, durationMs: 400 });
+    await driver.swipe({ startX: 0, startY: 0, endX: 0, endY: 100 });
+
+    expect(runner.calls).toEqual([
+      ["tap", "--label", "Allow", "--wait-timeout", "5", "--udid", "SIMULATOR-UDID"],
+      ["tap", "--label", "Allow", "--udid", "SIMULATOR-UDID"],
+      [
+        "swipe",
+        "--start-x",
+        "200",
+        "--start-y",
+        "650",
+        "--end-x",
+        "200",
+        "--end-y",
+        "250",
+        "--duration",
+        "0.4",
+        "--udid",
+        "SIMULATOR-UDID"
+      ],
+      [
+        "swipe",
+        "--start-x",
+        "0",
+        "--start-y",
+        "0",
+        "--end-x",
+        "0",
+        "--end-y",
+        "100",
+        "--udid",
+        "SIMULATOR-UDID"
+      ]
+    ]);
+  });
+
   it("keeps a missing AXe executable actionable", async () => {
     const binary = "/tmp/axhandle-missing-binary";
     const runner = new NodeAxeCommandRunner(binary);

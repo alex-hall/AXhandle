@@ -8,7 +8,9 @@ import type { AxeDriver, AxeTapTarget, Clock } from "../src/types.js";
 
 expect.extend(axeMatchers);
 
-const fixturePath = fileURLToPath(new URL("./fixtures/message-screen.json", import.meta.url));
+const fixturePath = fileURLToPath(
+  new URL("./fixtures/message-screen.json", import.meta.url),
+);
 const messageFixture = JSON.parse(await readFile(fixturePath, "utf8")) as {
   formatVersion: 1;
   metadata: { source: "synthetic" };
@@ -38,20 +40,23 @@ const fakeClock = (): Clock & { elapsed(): number } => {
     sleep: async (milliseconds) => {
       time += milliseconds;
     },
-    elapsed: () => time
+    elapsed: () => time,
   };
 };
 
 describe("Device locators", () => {
   it("prefers AXe's semantic role description over its low-level AX role", async () => {
-    const device = new Device("primary", new FixtureAxeDriver({
-      role_description: "button",
-      role: "AXButton",
-      AXUniqueId: "send",
-      AXLabel: "Send",
-      enabled: true,
-      children: []
-    }));
+    const device = new Device(
+      "primary",
+      new FixtureAxeDriver({
+        role_description: "button",
+        role: "AXButton",
+        AXUniqueId: "send",
+        AXLabel: "Send",
+        enabled: true,
+        children: [],
+      }),
+    );
 
     await expect(device.findByRole("button", { name: "Send" })).toBeEnabled();
   });
@@ -61,28 +66,36 @@ describe("Device locators", () => {
     const aliceThread = device.findByTestId("thread-a");
 
     await expect(aliceThread.findByText("Hello")).toBeVisible();
-    await expect(aliceThread.findByRole("button", { name: "Send" })).toBeEnabled();
-    await expect(device.findByTestId("thread-b").findByRole("button", { name: "Send" })).toBeDisabled();
-    await expect(aliceThread.findByRole("button", { name: "Send" })).not.toBeDisabled();
+    await expect(
+      aliceThread.findByRole("button", { name: "Send" }),
+    ).toBeEnabled();
+    await expect(
+      device.findByTestId("thread-b").findByRole("button", { name: "Send" }),
+    ).toBeDisabled();
+    await expect(
+      aliceThread.findByRole("button", { name: "Send" }),
+    ).not.toBeDisabled();
   });
 
   it("requires an explicit positional choice for duplicate matches", async () => {
     const device = new Device("primary", new FixtureAxeDriver(messageScreen));
 
     await expect(device.findByText("Hello").resolve()).rejects.toThrow(
-      'application > group#thread-a > statictext["Hello"]'
+      'application > group#thread-a > statictext["Hello"]',
     );
-    await expect(device.findByText("Hello").second().resolve()).resolves.toMatchObject({
-      label: "Hello"
+    await expect(
+      device.findByText("Hello").second().resolve(),
+    ).resolves.toMatchObject({
+      label: "Hello",
     });
     await expect(device.findByText("Hello")).toHaveCount(2);
 
     expect(device.commandLog()).toContainEqual(
-      expect.objectContaining({ command: "inspect", status: "failed" })
+      expect.objectContaining({ command: "inspect", status: "failed" }),
     );
   });
 
-  it("uses a unique id when tapping a scoped locator", async () => {
+  it("click() stays a working alias for tap() until 1.0", async () => {
     const driver = new FixtureAxeDriver(messageScreen);
     const device = new Device("primary", driver);
 
@@ -93,7 +106,26 @@ describe("Device locators", () => {
 
     expect(driver.calls).toContainEqual({
       kind: "tap",
-      target: { kind: "id", id: "send-a" }
+      target: { kind: "id", id: "send-a" },
+    });
+    // The alias logs under the canonical command name.
+    expect(device.commandLog()).toContainEqual(
+      expect.objectContaining({ command: "tap", status: "passed" }),
+    );
+  });
+
+  it("uses a unique id when tapping a scoped locator", async () => {
+    const driver = new FixtureAxeDriver(messageScreen);
+    const device = new Device("primary", driver);
+
+    await device
+      .findByTestId("thread-a")
+      .findByRole("button", { name: "Send" })
+      .tap();
+
+    expect(driver.calls).toContainEqual({
+      kind: "tap",
+      target: { kind: "id", id: "send-a" },
     });
   });
 
@@ -102,11 +134,12 @@ describe("Device locators", () => {
       AXChildren: Array<{ AXUniqueId?: string; AXChildren?: unknown[] }>;
     };
     const alice = deliveredScreen.AXChildren[0];
-    if (!alice?.AXChildren) throw new Error("Fixture shape changed unexpectedly.");
+    if (!alice?.AXChildren)
+      throw new Error("Fixture shape changed unexpectedly.");
     alice.AXChildren.push({
       AXRole: "StaticText",
       AXLabel: "Delivered",
-      frame: { x: 16, y: 64, width: 100, height: 30 }
+      frame: { x: 16, y: 64, width: 100, height: 30 },
     });
 
     const device = new Device(
@@ -117,47 +150,58 @@ describe("Device locators", () => {
             call.kind === "tap" &&
             call.target.kind === "id" &&
             call.target.id === "send-a",
-          nextUi: deliveredScreen
-        }
-      ])
+          nextUi: deliveredScreen,
+        },
+      ]),
     );
 
     const thread = device.findByTestId("thread-a");
-    await thread.findByTestId("send-a").click();
+    await thread.findByTestId("send-a").tap();
     await expect(thread.findByText("Delivered")).toBeVisible();
   });
 
   it("fills a field with select-all, type, and AXValue verification", async () => {
     const filledScreen = structuredClone(messageScreen) as {
-      AXChildren: Array<{ AXUniqueId?: string; AXChildren?: Array<Record<string, unknown>> }>;
+      AXChildren: Array<{
+        AXUniqueId?: string;
+        AXChildren?: Array<Record<string, unknown>>;
+      }>;
     };
     const alice = filledScreen.AXChildren[0];
-    if (!alice?.AXChildren) throw new Error("Fixture shape changed unexpectedly.");
+    if (!alice?.AXChildren)
+      throw new Error("Fixture shape changed unexpectedly.");
     alice.AXChildren.push({
       AXRole: "TextField",
       AXUniqueId: "message-input",
       AXLabel: "Message",
       AXValue: "Hello",
       AXEnabled: true,
-      frame: { x: 16, y: 96, width: 300, height: 44 }
+      frame: { x: 16, y: 96, width: 300, height: 44 },
     });
 
     const initialScreen = structuredClone(filledScreen) as typeof filledScreen;
     const initialAlice = initialScreen.AXChildren[0];
     const input = initialAlice?.AXChildren?.find(
-      (node) => node.AXUniqueId === "message-input"
+      (node) => node.AXUniqueId === "message-input",
     );
     if (!input) throw new Error("Fixture shape changed unexpectedly.");
     input.AXValue = "Existing value";
 
     const driver = new FixtureAxeDriver(initialScreen, [
-      { when: (call) => call.kind === "type" && call.text === "Hello", nextUi: filledScreen }
+      {
+        when: (call) => call.kind === "type" && call.text === "Hello",
+        nextUi: filledScreen,
+      },
     ]);
     const device = new Device("primary", driver);
 
     await device.findByTestId("message-input").fill("Hello");
 
-    expect(driver.calls).toContainEqual({ kind: "keyCombo", modifiers: [227], key: 4 });
+    expect(driver.calls).toContainEqual({
+      kind: "keyCombo",
+      modifiers: [227],
+      key: 4,
+    });
     await expect(device.findByTestId("message-input")).toHaveValue("Hello");
     await expect(device.findByTestId("message-input")).toHaveText("Message");
   });
@@ -165,22 +209,26 @@ describe("Device locators", () => {
   it("checks and unchecks AXe switch values without redundant taps", async () => {
     const unchecked = {
       AXRole: "Application",
-      AXChildren: [{
-        AXRole: "CheckBox",
-        AXUniqueId: "notifications",
-        AXLabel: "Notifications",
-        AXValue: "0",
-        AXEnabled: true,
-        frame: { x: 300, y: 16, width: 60, height: 28 }
-      }]
+      AXChildren: [
+        {
+          AXRole: "CheckBox",
+          AXUniqueId: "notifications",
+          AXLabel: "Notifications",
+          AXValue: "0",
+          AXEnabled: true,
+          frame: { x: 300, y: 16, width: 60, height: 28 },
+        },
+      ],
     };
     const checked = structuredClone(unchecked) as typeof unchecked;
     checked.AXChildren[0]!.AXValue = "1";
 
-    const driver = new FixtureAxeDriver(unchecked, [{
-      when: (call) => call.kind === "tap",
-      nextUi: checked
-    }]);
+    const driver = new FixtureAxeDriver(unchecked, [
+      {
+        when: (call) => call.kind === "tap",
+        nextUi: checked,
+      },
+    ]);
     const device = new Device("primary", driver);
     const notifications = device.findByTestId("notifications");
 
@@ -190,27 +238,33 @@ describe("Device locators", () => {
     await notifications.check();
 
     expect(driver.calls.filter((call) => call.kind === "tap")).toHaveLength(1);
-    expect(device.commandLog()).toContainEqual(expect.objectContaining({ command: "check" }));
+    expect(device.commandLog()).toContainEqual(
+      expect.objectContaining({ command: "check" }),
+    );
   });
 
   it("unchecks an already checked control", async () => {
     const checked = {
       AXRole: "Application",
-      AXChildren: [{
-        AXRole: "CheckBox",
-        AXUniqueId: "notifications",
-        AXLabel: "Notifications",
-        AXValue: true,
-        AXEnabled: true,
-        frame: { x: 300, y: 16, width: 60, height: 28 }
-      }]
+      AXChildren: [
+        {
+          AXRole: "CheckBox",
+          AXUniqueId: "notifications",
+          AXLabel: "Notifications",
+          AXValue: true,
+          AXEnabled: true,
+          frame: { x: 300, y: 16, width: 60, height: 28 },
+        },
+      ],
     };
     const unchecked = structuredClone(checked) as typeof checked;
     unchecked.AXChildren[0]!.AXValue = false;
-    const driver = new FixtureAxeDriver(checked, [{
-      when: (call) => call.kind === "tap",
-      nextUi: unchecked
-    }]);
+    const driver = new FixtureAxeDriver(checked, [
+      {
+        when: (call) => call.kind === "tap",
+        nextUi: unchecked,
+      },
+    ]);
     const device = new Device("primary", driver);
 
     await device.findByTestId("notifications").uncheck();
@@ -221,17 +275,29 @@ describe("Device locators", () => {
     const hidden = {
       AXRole: "Application",
       AXChildren: [
-        { AXRole: "StaticText", AXUniqueId: "status", AXLabel: "Connecting", AXVisible: false }
-      ]
+        {
+          AXRole: "StaticText",
+          AXUniqueId: "status",
+          AXLabel: "Connecting",
+          AXVisible: false,
+        },
+      ],
     };
     const ready = {
       AXRole: "Application",
       AXChildren: [
-        { AXRole: "StaticText", AXUniqueId: "status", AXLabel: "Ready", AXVisible: true }
-      ]
+        {
+          AXRole: "StaticText",
+          AXUniqueId: "status",
+          AXLabel: "Ready",
+          AXVisible: true,
+        },
+      ],
     };
     const clock = fakeClock();
-    const device = new Device("primary", new SequenceDriver([hidden, ready]), { clock });
+    const device = new Device("primary", new SequenceDriver([hidden, ready]), {
+      clock,
+    });
     const status = device.findByTestId("status");
 
     await expect(status).toBeVisible({ timeout: 100, interval: 25 });
@@ -241,12 +307,22 @@ describe("Device locators", () => {
   });
 
   it("asserts hidden accessibility state", async () => {
-    const device = new Device("primary", new SequenceDriver([{
-      AXRole: "Application",
-      AXChildren: [
-        { AXRole: "StaticText", AXUniqueId: "status", AXLabel: "Connecting", AXVisible: false }
-      ]
-    }]));
+    const device = new Device(
+      "primary",
+      new SequenceDriver([
+        {
+          AXRole: "Application",
+          AXChildren: [
+            {
+              AXRole: "StaticText",
+              AXUniqueId: "status",
+              AXLabel: "Connecting",
+              AXVisible: false,
+            },
+          ],
+        },
+      ]),
+    );
 
     await expect(device.findByTestId("status")).toBeHidden();
   });
@@ -257,7 +333,7 @@ describe("Device locators", () => {
     const clock = fakeClock();
     const device = new Device("primary", driver, { clock });
 
-    await device.findByTestId("send-a").click({ timeout: 100, interval: 25 });
+    await device.findByTestId("send-a").tap({ timeout: 100, interval: 25 });
 
     expect(clock.elapsed()).toBe(25);
   });
@@ -272,9 +348,9 @@ describe("Device locators", () => {
           AXLabel: "Send",
           AXEnabled: false,
           AXVisible: false,
-          frame: { x: 16, y: 16, width: 100, height: 44 }
-        }
-      ]
+          frame: { x: 16, y: 16, width: 100, height: 44 },
+        },
+      ],
     };
     const available = structuredClone(unavailable) as typeof unavailable;
     available.AXChildren[0]!.AXEnabled = true;
@@ -283,7 +359,7 @@ describe("Device locators", () => {
     const clock = fakeClock();
     const device = new Device("primary", driver, { clock });
 
-    await device.findByTestId("send").click({ timeout: 100, interval: 25 });
+    await device.findByTestId("send").tap({ timeout: 100, interval: 25 });
 
     expect(clock.elapsed()).toBe(25);
   });
@@ -297,17 +373,17 @@ describe("Device locators", () => {
           AXUniqueId: "send",
           AXLabel: "Send",
           AXEnabled: false,
-          frame: { x: 16, y: 16, width: 100, height: 44 }
-        }
-      ]
+          frame: { x: 16, y: 16, width: 100, height: 44 },
+        },
+      ],
     };
     const driver = new FixtureAxeDriver(disabled);
     const clock = fakeClock();
     const device = new Device("primary", driver, { clock });
 
-    await expect(device.findByTestId("send").click({ timeout: 100, interval: 25 })).rejects.toThrow(
-      "but it is disabled"
-    );
+    await expect(
+      device.findByTestId("send").tap({ timeout: 100, interval: 25 }),
+    ).rejects.toThrow("but it is disabled");
     expect(driver.calls.filter((call) => call.kind === "tap")).toHaveLength(0);
   });
 
@@ -315,10 +391,10 @@ describe("Device locators", () => {
     const device = new Device("primary", new FixtureAxeDriver(messageScreen));
 
     await expect(device.screenshot("artifacts/primary.png")).rejects.toThrow(
-      "does not support screenshots"
+      "does not support screenshots",
     );
     expect(device.commandLog()).toContainEqual(
-      expect.objectContaining({ command: "screenshot", status: "failed" })
+      expect.objectContaining({ command: "screenshot", status: "failed" }),
     );
   });
 });

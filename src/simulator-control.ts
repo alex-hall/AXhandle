@@ -57,9 +57,17 @@ export interface LaunchSimulatorAppOptions {
 
 export interface SimulatorController {
   install(udid: string, appPath: string): Promise<void>;
+  uninstall(udid: string, bundleId: string): Promise<void>;
   launch(options: LaunchSimulatorAppOptions): Promise<{ pid?: number }>;
   terminate(udid: string, bundleId: string): Promise<void>;
   erase(udid: string): Promise<void>;
+  appContainerPath(
+    udid: string,
+    bundleId: string,
+    container?: "app" | "data" | "groups"
+  ): Promise<string | undefined>;
+  isAppInstalled(udid: string, bundleId: string): Promise<boolean>;
+  resetKeychain(udid: string): Promise<void>;
   grantPermission(udid: string, service: string, bundleId: string): Promise<void>;
   revokePermission(udid: string, service: string, bundleId: string): Promise<void>;
   resetPermissions(udid: string, service?: string, bundleId?: string): Promise<void>;
@@ -75,6 +83,10 @@ export class XcrunSimulatorController implements SimulatorController {
 
   async install(udid: string, appPath: string): Promise<void> {
     await this.runner.run(["install", udid, appPath]);
+  }
+
+  async uninstall(udid: string, bundleId: string): Promise<void> {
+    await this.runner.run(["uninstall", udid, bundleId]);
   }
 
   async launch(options: LaunchSimulatorAppOptions): Promise<{ pid?: number }> {
@@ -93,6 +105,36 @@ export class XcrunSimulatorController implements SimulatorController {
 
   async erase(udid: string): Promise<void> {
     await this.runner.run(["erase", udid]);
+  }
+
+  /** The installed .app bundle's path, or undefined when not installed. */
+  async appContainerPath(
+    udid: string,
+    bundleId: string,
+    container: "app" | "data" | "groups" = "app"
+  ): Promise<string | undefined> {
+    try {
+      const { stdout } = await this.runner.run(["get_app_container", udid, bundleId, container]);
+      const containerPath = stdout.trim();
+      return containerPath.length > 0 ? containerPath : undefined;
+    } catch (error) {
+      if (error instanceof SimulatorCommandError) return undefined;
+      throw error;
+    }
+  }
+
+  async isAppInstalled(udid: string, bundleId: string): Promise<boolean> {
+    return (await this.appContainerPath(udid, bundleId)) !== undefined;
+  }
+
+  /**
+   * The simulator keychain SURVIVES app uninstall — leftover identities are
+   * the classic source of non-deterministic first-run state (an app that
+   * boots signed-in, or offers "sign in" where a fresh install offers
+   * "sign up"). Reset it whenever a test needs a genuinely pristine install.
+   */
+  async resetKeychain(udid: string): Promise<void> {
+    await this.runner.run(["keychain", udid, "reset"]);
   }
 
   async grantPermission(udid: string, service: string, bundleId: string): Promise<void> {
@@ -147,6 +189,55 @@ const unsupportedBiometricError = (): Error =>
   new Error(
     "Biometric simulation is not available through the configured simulator controller. Inject a verified BiometricController implementation."
   );
+
+/**
+ * Face ID / Touch ID simulation over the simulator's Darwin notification
+ * bridge (`xcrun simctl spawn <udid> notifyutil`). simctl exposes no biometric
+ * subcommand, but BiometricKit inside the simulator listens for these
+ * notifications — the same mechanism behind Simulator.app's
+ * Features > Face ID menu.
+ *
+ * Two caveats callers must own:
+ * - The biometric prompt is SYSTEM UI, outside the app's accessibility tree:
+ *   `describe-ui` cannot observe it, so there is no pollable "prompt is
+ *   ready" condition. Sequence matches against an app-level observable (or a
+ *   documented settle delay) and verify the outcome in the app afterwards.
+ * - enroll() must run before any match — and apps that gate on biometrics
+ *   may behave badly when launched unenrolled.
+ */
+export class NotifyutilBiometricController implements BiometricController {
+  constructor(
+    private readonly runner: SimulatorCommandRunner = new NodeSimulatorCommandRunner()
+  ) {}
+
+  /** Enroll a simulated face/fingerprint. Idempotent; required before any match. */
+  async enroll(udid: string): Promise<void> {
+    await this.setEnrollment(udid, true);
+  }
+
+  async unenroll(udid: string): Promise<void> {
+    await this.setEnrollment(udid, false);
+  }
+
+  /** Approve the currently-presented biometric prompt. */
+  async match(udid: string): Promise<void> {
+    await this.notifyutil(udid, "-p", "com.apple.BiometricKit_Sim.pearl.match");
+  }
+
+  /** Reject the currently-presented biometric prompt (non-matching face). */
+  async nonMatch(udid: string): Promise<void> {
+    await this.notifyutil(udid, "-p", "com.apple.BiometricKit_Sim.pearl.nomatch");
+  }
+
+  private async setEnrollment(udid: string, enrolled: boolean): Promise<void> {
+    await this.notifyutil(udid, "-s", "com.apple.BiometricKit.enrollmentChanged", enrolled ? "1" : "0");
+    await this.notifyutil(udid, "-p", "com.apple.BiometricKit.enrollmentChanged");
+  }
+
+  private notifyutil(udid: string, ...args: string[]): Promise<SimulatorCommandResult> {
+    return this.runner.run(["spawn", udid, "notifyutil", ...args]);
+  }
+}
 
 const childEnvironment = (
   environment: Readonly<Record<string, string>> | undefined
