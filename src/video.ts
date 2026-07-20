@@ -13,7 +13,7 @@ export interface VideoRecorderProcess {
 export interface SimulatorVideoRecorderOptions {
   codec?: string;
   /** Upper bound on waiting for the recorder to finalize after SIGINT. */
-  finalizeTimeoutMs?: number;
+  finalizeTimeout?: number;
   /** Process launcher override; defaults to node's spawn with ignored stdio. */
   launch?: (command: string, args: readonly string[]) => VideoRecorderProcess;
 }
@@ -72,7 +72,7 @@ export class SimulatorVideoRecorder {
       child.kill("SIGINT");
     }
 
-    const timeout = this.options.finalizeTimeoutMs ?? 15_000;
+    const timeout = this.options.finalizeTimeout ?? 15_000;
     let timer: ReturnType<typeof setTimeout> | undefined;
     await Promise.race([
       this.exited,

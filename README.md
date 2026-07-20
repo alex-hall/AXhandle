@@ -1,25 +1,61 @@
 # AXhandle
 
-A TypeScript-first, promise-based testing harness for iOS Simulator automation
-through [cameroncooke/AXe](https://github.com/cameroncooke/AXe).
+A TypeScript wrapper around [cameroncooke/AXe](https://github.com/cameroncooke/AXe)
+for building and managing iOS Simulator regression suites. You get
+Playwright-style locators and custom Vitest matchers for driving a real app
+through its accessibility tree — no app changes, no mocks — plus wrappers for
+the Apple tooling a simulator suite ends up needing anyway:
 
-This project is intentionally app-agnostic. It wraps AXe behind typed
-primitives, then provides chainable accessibility locators, retrying
-assertions, and Vitest integration.
+- **`simctl` app lifecycle** — install, launch, permission grants, and the
+  state that survives reinstall (keychain, pasteboard) and quietly breaks
+  "fresh install" tests until you reset it.
+- **Face ID / Touch ID simulation** — `simctl` has no biometric command;
+  AXhandle drives the same notification bridge Simulator.app's Features menu
+  uses.
+- **Per-test screen recording** — kept on failure, deleted on pass, finalized
+  correctly (get this wrong and the file is corrupt).
+- **A per-device command log with real timings** — so when the suite is slow,
+  you can see where the time actually went.
+
+## Contents
+
+- [Getting started](#getting-started)
+- [API overview](#api-overview)
+- [Vitest setup](#vitest-setup)
+- [Choosing selectors](#choosing-selectors)
+- [One element, or "is it on screen at all?"](#one-element-or-is-it-on-screen-at-all)
+- [Taps that get swallowed](#taps-that-get-swallowed)
+- [Things the accessibility tree can't see](#things-the-accessibility-tree-cant-see)
+- [Text input](#text-input)
+- [Switches and checkboxes](#switches-and-checkboxes)
+- [Timeouts](#timeouts)
+- [Screenshots and video](#screenshots-and-video)
+- [Screenshot/Debug when a test fails](#screenshotdebug-when-a-test-fails)
+- [Multiple devices](#multiple-devices)
+- [Command log and step timing](#command-log-and-step-timing)
+- [Simulator control and Face ID](#simulator-control-and-face-id)
+- [Preflight diagnostics](#preflight-diagnostics)
+- [Contributing](#contributing)
 
 ## Getting started
 
-AXhandle runs on macOS against the iOS Simulator. Install a supported
-AXe CLI version on `PATH`, then add this package and Vitest to the consuming
-project:
+AXhandle runs on macOS and talks to the simulator through the AXe CLI:
 
 ```sh
+brew install cameroncooke/axe/axe    # AXe CLI on PATH
 npm install --save-dev axhandle vitest
 ```
 
-Register the matchers and create a project-specific test fixture as shown in
-[Vitest setup](#vitest-setup). The fixture is where your project supplies a
-simulator UDID and owns app-specific provisioning and reset behavior.
+Every `Device` targets one simulator by UDID. Find yours with:
+
+```sh
+xcrun simctl list devices booted
+```
+
+The examples below read the UDID from an environment variable
+(`PRIMARY_SIMULATOR_UDID`) — that's your variable to define, not something
+AXhandle reads on its own. Wire it into a fixture once
+([Vitest setup](#vitest-setup)) and tests look like this:
 
 ```ts
 const thread = device.findByTestId("thread");
@@ -28,24 +64,65 @@ await thread.findByRole("button", { name: "Send" }).tap();
 await expect(thread.findByText("Delivered")).toBeVisible();
 ```
 
-## What it provides
+## API overview
 
-AXhandle provides:
+Everything hangs off a `Device` (one simulator) and the `Locator`s it
+creates. Actions are plain promises — no hidden command queue.
 
-- a typed AXe driver boundary;
-- a normalised accessibility tree;
-- strict, chainable `findBy…` locators with `first()`, `second()`, and `nth()`;
-- async Vitest matchers and structured failure evidence; and
-- named, independently composable devices for multi-simulator flows.
+**Finding elements**
 
-It is designed for simulator-backed end-to-end tests. Your suite supplies the
-simulator devices, application lifecycle, identity/provisioning, and reset
-behavior; this package supplies typed AXe interaction and assertion semantics.
+| API | What it does |
+| --- | --- |
+| `findByRole("button", { name: "Send" })` | Match by accessibility role and name — the selector a person would use |
+| `findByText(value)` / `findByLabel(value)` | Match visible text or accessibility label; `{ exact: false }` for case-insensitive substring matching |
+| `findByTestId(value)` | Match a `testID` / accessibility identifier |
+| `.first()` / `.second()` / `.nth(i)` | Choose among duplicate matches explicitly |
+| `parent.findBy…(…)` | Scope a query inside a previous match |
+
+**Acting on them**
+
+| API | What it does |
+| --- | --- |
+| `tap()` | Wait until the element is unique, visible, and enabled; then tap. `tap({ until })` retries until an arrival marker appears |
+| `type(text)` | Tap the field, then send HID keystrokes |
+| `fill(text)` | Replace field contents (select-all + type) and verify the result |
+| `check()` / `uncheck()` | Read a switch's state, tap only if needed, verify |
+| `tapLabel(label)` | Tap by label through AXe directly — reaches native alert buttons the tree never shows |
+| `tapPoint(x, y)` / `longPress(x, y)` / `swipe(gesture)` | Raw coordinate gestures, logged and queued |
+| `screenshot(path)` | PNG of the current screen |
+
+**Waiting and asserting**
+
+| API | What it does |
+| --- | --- |
+| `expect(locator).toBeVisible()` etc. | Retrying Vitest matchers: `toBeVisible/Hidden`, `toBeEnabled/Disabled`, `toBeChecked/Unchecked`, `toHaveText/Value/Count` |
+| `waitForVisible()` / `waitFor(predicate)` | Poll until the (single) element satisfies a condition |
+| `isPresent()` / `waitForPresent()` / `waitForGone()` | Non-strict presence: "is anything matching on screen?" |
+| `firstPresent(...locators)` | Which of these screens am I on? One tree fetch answers |
+| `presentNodes()` / `matchesIn(tree)` | Read the matching nodes themselves; evaluate many locators against one snapshot |
+| `poll(condition, options)` | The bare polling loop, exported for your own waits |
+
+**Running a suite**
+
+| API | What it does |
+| --- | --- |
+| `createAxeTest(options)` | Vitest fixture: device creation, reset, failure evidence, deterministic teardown |
+| `DirectoryArtifactSink` | On failure, write screenshot + accessibility tree + command log to a directory |
+| `SimulatorVideoRecorder` | Record every test; keep video on failure, discard on pass |
+| `commandLog()` / `commandMark()` / `recordAction()` | Per-device action log with timings, windowable per step |
+
+**Simulator control**
+
+| API | What it does |
+| --- | --- |
+| `XcrunSimulatorController` | Install/uninstall/launch/terminate, permission grants, keychain reset, pasteboard get/set, container paths |
+| `NotifyutilBiometricController` | Enroll, match, and reject Face ID / Touch ID prompts |
+| `diagnoseAxe(options)` | Read-only preflight: AXe version, simulator booted, tree parses — with a per-check report |
 
 ## Vitest setup
 
-Install the matchers once in a Vitest setup file, then export a project-specific
-`test` with the device lifecycle your application needs:
+Register the matchers once, then export a project-specific `test` that owns
+your device lifecycle:
 
 ```ts
 // test/support/axe.ts
@@ -64,7 +141,7 @@ export const test = createAxeTest({
   }),
 
   reset: async ({ devices }) => {
-    // Application-specific cleanup belongs to the consumer.
+    // App-specific cleanup between tests belongs to your suite.
     await devices.primary.findByTestId("account").tap();
   },
 });
@@ -77,77 +154,77 @@ import { test } from "./support/axe.js";
 
 test("sends a message", async ({ devices }) => {
   const device = devices.primary;
-  const message = device.findByTestId("message-input");
 
-  await message.type("Hello");
+  await device.findByTestId("message-input").type("Hello");
   await device.findByRole("button", { name: "Send" }).tap();
   await expect(device.findByText("Delivered")).toBeVisible();
 });
 ```
 
-`findBy…` calls only construct immutable locator descriptions. Actions and
-assertions execute immediately as normal promises when they are awaited; there
-is no Cypress-style hidden command queue.
+The rest of this README is guidance: how to pick selectors, and the
+simulator/accessibility quirks each part of the API exists to absorb.
 
-## Locator strategy
+## Choosing selectors
 
-Favor selectors a person could understand from the interface: roles and their
-accessible names first, then visible text or labels. For example:
-
-```ts
-await device.findByRole("button", { name: "Send" }).tap();
-await expect(device.findByText("Delivered")).toBeVisible();
-```
-
-Use `findByTestId` when semantic selectors cannot distinguish repeated controls
-or when it provides a useful stable scope. It is intentionally available, but
-the library does not require every interaction to be driven by opaque IDs.
-The supported role contract and known framework differences are documented in
+Prefer selectors a person could read off the screen: roles and names first,
+then visible text or labels. `findByTestId` is there when semantic selectors
+can't distinguish repeated controls — useful, just not mandatory. The
+supported roles and known framework differences are in
 `docs/accessibility-roles.md`.
 
-When AXe reports a genuine accessibility hierarchy, locators can scope further
-searches without a new abstraction:
+Locators chain to scope a search:
 
 ```ts
 const body = device.findByTestId("body");
 await body.findByRole("button", { name: "Send" }).tap();
 ```
 
-Scope is hierarchy-strict. Some visual containers, including the public
-SwiftUI and React Native sample composer, are flattened by AXe into sibling
-elements; a visual container is not a valid scope in that shape.
+Watch out: scoping follows the accessibility hierarchy, not the visual one.
+AXe flattens some visual containers (SwiftUI and React Native composers among
+them) into siblings — a container that looks like a parent on screen may not
+be one in the tree.
 
-## Presence, absence, and screen detection
+## One element, or "is it on screen at all?"
 
-Interactions are strict — one element, or an error. Presence questions are
-different: "is the toast gone yet?" or "which screen am I on?" want a
-non-strict answer, not an ambiguity error.
+Interactions are strict: a locator must resolve to exactly one element, and
+ambiguity is an error that tells you to refine the query. Presence questions
+are different — "is the toast gone?", "which screen am I on?" — and have
+their own non-strict APIs:
 
 ```ts
-if (await device.findByLabel("Saved").exists()) {
-  /* … */
-}
+if (await device.findByLabel("Saved").isPresent()) { /* … */ }
 await device.findByLabel("Uploading").waitForGone();
 
-// One accessibility snapshot answers a multi-screen race:
+// One tree fetch decides a multi-screen race:
 const seen = await device.firstPresent(welcome, home);
-if (seen === home) {
-  /* already signed in */
-}
+if (seen === home) { /* already signed in */ }
 ```
 
-`findByText` and `findByLabel` accept `{ exact: false }` for normalized
-substring matching: case-insensitive, and no-break spaces (which some
-frameworks, React Native included, use to join composite labels) match
-ordinary spaces. Exact matching stays exact — an ASCII space never equals
-U+00A0.
+`presentNodes()` returns the matching nodes themselves — useful when the
+rendered content is the ground truth, like reading a display name back off a
+profile row because the text input that produced it is opaque to
+accessibility.
 
-## Navigation taps that verify arrival
+When you need many answers from one screen, fetch the tree once and evaluate
+locators against it — each fetch is a full `describe-ui` round trip, so this
+is the difference between one CLI call and ten:
 
-A "successful" tap is not proof of navigation: a control can render before its
-touch handler attaches, and overlays or first-run tooltips can swallow the
-first tap. `tap({ until })` retries the tap until an arrival locator is
-present, tolerating a control that vanished because an earlier tap did land:
+```ts
+const { tree } = await device.uiSnapshot();
+const frame = device.findByLabel("7").matchesIn(tree)[0]?.frame;
+```
+
+Substring matching (`{ exact: false }`) is case-insensitive and treats
+no-break spaces as spaces. That last part matters on React Native, which
+joins composite labels with U+00A0 — an exact query typed with a normal space
+will never match, and nothing will tell you why.
+
+## Taps that get swallowed
+
+A tap can "succeed" and do nothing: React Native renders buttons before their
+touch handlers attach, first-run tooltips eat the next tap, and overlays sit
+above targets. When a tap is supposed to navigate, say so, and AXhandle
+retries until the destination actually shows up:
 
 ```ts
 await device.findByLabel("Continue").tap({
@@ -156,19 +233,24 @@ await device.findByLabel("Continue").tap({
 });
 ```
 
-> `click()` (from 0.1.x) remains a deprecated alias for `tap()` and will be
-> removed in 1.0 — iOS has taps, not clicks.
+(`click()` from 0.1.x still works as a deprecated alias — it's removed in
+1.0. iOS has taps, not clicks.)
 
-## System alerts, gestures, and raw taps
+## Things the accessibility tree can't see
 
-Native alert buttons frequently never appear in `describe-ui`, so tree-based
-locators cannot reach them — but AXe's own label tap still lands. `tapLabel`
-exposes it (including AXe's `--wait-timeout` presence polling), and
-`optional: true` makes it the standard way to drain an alert whose arrival
-races the flow:
+Native alert buttons ("Allow", "Delete", permission prompts) frequently don't
+appear in `describe-ui` at all, so tree-based locators can't reach them. AXe's
+label tap still lands. `tapLabel` exposes it, and `optional: true` is the
+pattern for draining an alert that may or may not show up:
 
 ```ts
 await device.tapLabel("Allow", { waitTimeout: 5_000, optional: true });
+```
+
+Coordinate gestures cover the rest — list scrolling, long-press affordances,
+targets with no labels:
+
+```ts
 await device.swipe({
   startX: 200,
   startY: 650,
@@ -176,70 +258,119 @@ await device.swipe({
   endY: 250,
   durationMs: 400,
 });
+await device.longPress(200, 420, { holdMs: 1_500, command: "copy-link" });
 await device.tapPoint(200, 500);
 ```
 
-No actionability check happens on these paths — use them where the next wait
-in the flow verifies the outcome. All three run through the device queue and
-command log. On the driver contract they are optional capabilities;
-`AxeCliDriver` implements them all.
+None of these check actionability first — use them where the next wait in
+your flow verifies the outcome. They all run through the device queue and
+show up in the command log; pass `{ command: "numpad-7" }` to give the log
+row a meaningful name.
 
-## Command log and step timing
+## Text input
 
-Every queued operation lands in `device.commandLog()` with real timings.
-`recordAction` folds out-of-band work (app lifecycle, biometric triggers, raw
-driver calls) into the same queue and log so one log is the whole truth, and
-`commandMark()` + `commandLog({ after })` window it for per-step attribution:
+`type()` appends HID keystrokes to the focused field. `fill()` replaces the
+contents (tap, select-all, type) and verifies the field's accessibility value
+afterwards:
 
 ```ts
-const mark = device.commandMark();
-await device.recordAction("app.launch", () =>
-  simulator.launch({ udid, bundleId }),
-);
-await signIn(device);
-const actionsInsideStep = device.commandLog({ after: mark });
+await device.findByTestId("message-input").fill("Hello");
 ```
 
-## Failure evidence
+For secure fields that mask their accessibility value, skip just the
+verification: `fill("…", { verify: false })`. If AXe text entry fails, the
+typed value is redacted from errors, the command log, and failure evidence.
 
-The Vitest fixture can capture raw AXe JSON, a normalized accessibility tree,
-and a command log when a test fails. Consumers own the destination through an
-artifact sink:
+AXe types on a US HID keyboard layout.
+
+## Switches and checkboxes
+
+`check()` and `uncheck()` read the current state, tap only when needed, and
+verify the result:
 
 ```ts
-import { InMemoryArtifactSink } from "axhandle";
+const notifications = device.findByRole("switch", { name: "Notifications" });
+await notifications.check();
+await expect(notifications).toBeChecked();
+```
 
-const evidence = new InMemoryArtifactSink();
+## Timeouts
+
+Three levels, all in milliseconds:
+
+1. `Device` defaults: 3s for actions, 5s for assertions, 100ms polling
+   interval.
+2. Per-call overrides: `tap({ timeout: 8_000 })`,
+   `toBeVisible({ timeout: 15_000 })`.
+3. Vitest owns the outer test deadline.
+
+```ts
+const device = new Device("primary", driver, {
+  timeouts: { action: 5_000, assertion: 10_000 },
+});
+```
+
+There is deliberately no sleep API. Wait on something observable; generous
+timeouts are free when the condition arrives early.
+
+## Screenshots and video
+
+Grab a screenshot at any point — it goes through the device queue, so it
+captures the screen as of the commands before it:
+
+```ts
+await device.screenshot("artifacts/after-signup.png");
+```
+
+For full-run recordings, `SimulatorVideoRecorder` wraps
+`simctl io recordVideo` with a record-always lifecycle: start before the
+test, keep the file on failure, delete it on pass:
+
+```ts
+import { SimulatorVideoRecorder } from "axhandle";
+
+const video = new SimulatorVideoRecorder(udid, "artifacts/run.mp4");
+video.start();
+try {
+  // ... drive the app ...
+} finally {
+  if (failed) await video.stop(); // finalize and keep
+  else await video.discard(); // finalize and delete
+}
+```
+
+Two details it handles for you: `recordVideo` only writes a playable file
+when finalized with SIGINT (kill it any other way and the video is corrupt),
+and `stop()` bounds its wait so a wedged recorder can't hang test teardown.
+
+## Screenshot/Debug when a test fails
+
+The Vitest fixture can automatically capture a screenshot, the raw and
+normalized accessibility tree, and the command log for every failing test:
+
+```ts
+import { DirectoryArtifactSink } from "axhandle";
 
 export const test = createAxeTest({
   createDevices,
   evidence: {
-    sink: evidence,
+    sink: new DirectoryArtifactSink("artifacts/evidence"),
     capture: "failure",
     screenshotPath: (device) => `artifacts/${device.name}.png`,
   },
 });
 ```
 
-Evidence is collected before `reset`. Capture and reset failures do not replace
-the original test failure.
-
-`DirectoryArtifactSink` writes each artifact as a file in a directory of your
-choice — the production default for retained evidence. File names carry the
-device name, and repeated captures (a second failing test, or `capture:
-"always"`) get numeric suffixes rather than overwriting earlier evidence.
-For screen recordings,
-`SimulatorVideoRecorder` wraps `simctl io recordVideo` with the lifecycle a
-record-always policy needs: `start()` before the test, `discard()` on pass,
-`stop()` on failure to keep the file. Finalization is SIGINT-only — any other
-way of ending the recorder process corrupts the file — and stop is
-deadline-bounded so a wedged recorder cannot hang teardown.
+File names include the device name, and repeated captures get numeric
+suffixes instead of overwriting earlier evidence. Capture runs before
+`reset`, and a capture failure never masks the original test failure. Pair
+it with [video recording](#screenshots-and-video) to retain a recording of
+each failed run alongside the tree and log.
 
 ## Multiple devices
 
-For device pairs or larger test topologies, provide a lease allocator rather
-than letting the harness retain a global pool. Each invocation gets named,
-independent `Device` instances; reset runs before the lease is released:
+For two-actor and larger tests, hand the fixture a lease allocator. Each test
+gets named, independent `Device` instances:
 
 ```ts
 export const test = createAxeTest({
@@ -252,9 +383,6 @@ export const test = createAxeTest({
       await Promise.all([releaseSimulator(alice), releaseSimulator(bob)]);
     },
   },
-  reset: async ({ devices }) => {
-    await Promise.all([resetApp(devices.alice), resetApp(devices.bob)]);
-  },
 });
 
 test("synchronizes two peers", async ({ devices }) => {
@@ -265,142 +393,90 @@ test("synchronizes two peers", async ({ devices }) => {
 });
 ```
 
-`Device` serializes commands only within itself. Separate devices remain normal
-independent promises, so the provider determines allocation and parallelism.
+Commands serialize within one device; separate devices run in parallel as
+ordinary promises. Lifecycle order is fixed: `beforeTest`, test body, failure
+evidence, `reset`, provider `release` — reset and release always run, and
+cleanup failures never replace the primary failure
+(`getAxeCleanupFailures(error)` retrieves them).
 
-Lifecycle order is deterministic: `beforeTest`, test body, failure evidence
-(when configured), `reset`, then provider `release`. Reset and release always
-run. A primary test failure remains primary; later cleanup failures are
-available to custom integrations with `getAxeCleanupFailures(error)`.
+## Command log and step timing
 
-## Text input
-
-`type()` appends HID keystrokes to the focused field. `fill()` replaces text by
-tapping the field, sending Command-A, typing the replacement, and verifying the
-new accessibility value:
-
-```ts
-await device.findByTestId("message-input").fill("Hello");
-await expect(device.findByTestId("message-input")).toHaveValue("Hello");
-```
-
-AXe uses a US HID keyboard layout. For fields that intentionally mask their
-accessibility value (such as secure text entry), skip only the value check:
+Every operation lands in `device.commandLog()` with start/end timestamps.
+`recordAction` pulls out-of-band work (app launches, biometric triggers) into
+the same log, and `commandMark()` + `commandLog({ after })` slice it per
+step — which is how you attribute a slow test to the actions inside it:
 
 ```ts
-await device.findByTestId("password").fill("correct-horse", { verify: false });
+const mark = device.commandMark();
+await device.recordAction("app.launch", () =>
+  simulator.launch({ udid, bundleId }),
+);
+await signIn(device);
+const actionsInsideStep = device.commandLog({ after: mark });
 ```
 
-If AXe text entry fails, the entered value is redacted from the public error,
-command log, and failure evidence. The command, simulator target, and AXe
-diagnostic remain available for debugging.
+Device calls nested inside `recordAction` are safe — they run inline on the
+held queue slot and still log their own rows.
 
-## Switches and checkboxes
+## Simulator control and Face ID
 
-`check()` and `uncheck()` read the current accessibility state, tap only when
-necessary, and retry until AXe reports the desired result:
-
-```ts
-const notifications = device.findByRole("switch", { name: "Notifications" });
-
-await notifications.check();
-await expect(notifications).toBeChecked();
-```
-
-## Timeouts
-
-There are three timeout levels:
-
-1. A `Device` has defaults for actions (3 seconds), assertions (5 seconds),
-   and polling interval (100 milliseconds).
-2. Vitest owns the outer test deadline.
-3. Individual actions and assertions can override their own timeout.
-
-```ts
-const device = new Device("primary", driver, {
-  timeouts: { action: 5_000, assertion: 10_000 },
-});
-
-await device.findByTestId("send").tap({ timeout: 8_000 });
-await expect(device.findByText("Delivered")).toBeVisible({ timeout: 15_000 });
-```
-
-Prefer a visible condition or assertion over an arbitrary delay. The public API
-intentionally has no manual sleep operation.
-
-## Environment diagnostics
-
-`diagnoseAxe` is a read-only preflight for a configured simulator. It checks
-the AXe binary and version, confirms that AXe reports the requested simulator
-as booted, reads and validates the accessibility tree, and can optionally
-exercise screenshot capture. It does not boot a simulator or launch, terminate,
-or reset an app.
-
-```ts
-import { diagnoseAxe } from "axhandle";
-
-const report = await diagnoseAxe({
-  udid: process.env.PRIMARY_SIMULATOR_UDID!,
-  screenshotPath: "artifacts/doctor.png", // optional
-});
-
-if (!report.healthy) {
-  throw new Error(report.checks.map((check) => check.message).join("\n"));
-}
-```
-
-The result retains every individual check, so an unavailable AXe binary, an
-unbooted simulator, malformed UI response, and screenshot failure remain
-distinct and actionable.
-
-The supported-version policy and validated public matrix are in
-`docs/compatibility.md`.
-
-To run the native SwiftUI sample proof after building and installing the app on
-a booted simulator:
-
-```sh
-AXE_E2E=1 AXE_E2E_SWIFTUI_UDID=<simulator-udid> npm run test:e2e
-```
-
-## Optional simulator and biometric control
-
-`Device` deliberately does not launch apps, erase simulators, or grant OS
-permissions. Consumers that want Xcode simulator control can opt into the
-shell-free `XcrunSimulatorController` instead:
+`Device` only drives the app's UI. App lifecycle and OS state live on
+`XcrunSimulatorController` (shell-free `simctl`):
 
 ```ts
 import { XcrunSimulatorController } from "axhandle";
 
 const simulator = new XcrunSimulatorController();
 await simulator.install(udid, "/path/to/Example.app");
-await simulator.grantPermission(udid, "photos", "dev.example.app");
+await simulator.grantPermission(udid, "camera", "dev.example.app");
 await simulator.launch({ udid, bundleId: "dev.example.app" });
+```
 
-// Deterministic first-run state: the simulator keychain SURVIVES uninstall,
-// and leftover identities are a classic source of flaky signup flows.
-await simulator.uninstall(udid, "dev.example.app");
-await simulator.resetKeychain(udid);
-if (await simulator.isAppInstalled(udid, "dev.example.app")) {
-  /* … */
+Two pieces of simulator state survive app uninstall and quietly break
+"fresh install" tests:
+
+- **The keychain.** A leftover identity turns your signup flow into a signin
+  flow. `resetKeychain(udid)` before a fresh install.
+- **The pasteboard.** Apps that inspect the clipboard on first focus
+  (deferred-deeplink detection) will act on whatever a previous test left
+  there. `setPasteboard(udid, "…")` to neutralize it.
+
+For Face ID / Touch ID, `simctl` has no biometric command.
+`NotifyutilBiometricController` posts the same Darwin notifications
+Simulator.app's Features menu does — `enroll`, `match`, `nonMatch`. One
+caveat: the biometric prompt is system UI, invisible to `describe-ui`, so you
+can't poll for it. Trigger the match against something observable in your app
+and verify the outcome there. (The default is `UnsupportedBiometricController`,
+which throws with instructions rather than silently no-oping.)
+
+## Preflight diagnostics
+
+`diagnoseAxe` checks the environment before a run wastes time on it: AXe
+binary present and a supported version, simulator booted, accessibility tree
+readable, optionally a screenshot round trip. Each check reports separately,
+so "AXe not installed" and "simulator not booted" stay distinct:
+
+```ts
+import { diagnoseAxe } from "axhandle";
+
+const report = await diagnoseAxe({ udid: process.env.PRIMARY_SIMULATOR_UDID! });
+if (!report.healthy) {
+  throw new Error(report.checks.map((check) => check.message).join("\n"));
 }
 ```
 
-Biometric simulation is a separate `BiometricController` interface; it is not
-an AXe capability. `NotifyutilBiometricController` drives BiometricKit over
-the simulator's Darwin notification bridge (`simctl spawn <udid> notifyutil`)
-— the same mechanism behind Simulator.app's Features menu — for enrollment,
-match, and non-match. Note the biometric prompt itself is system UI outside
-the app's accessibility tree: `describe-ui` cannot observe it, so sequence
-matches against an app-level observable and verify the outcome in the app.
-The default remains `UnsupportedBiometricController`, which throws clearly,
-because the validated Xcode 26.6 `simctl` exposes no biometric command.
+Supported AXe versions and the validated compatibility matrix are in
+`docs/compatibility.md`. To run the SwiftUI sample's e2e proof against a
+booted simulator:
 
-## Safety
+```sh
+AXE_E2E=1 AXE_E2E_SWIFTUI_UDID=<simulator-udid> npm run test:e2e
+```
 
-This is a public open-source project. Do not add private application code,
-screenshots, accessibility captures, logs, credentials, service URLs, or test
-flows. Read `Agent.MD` before contributing.
+## Contributing
+
+Contributor guidelines — including the information-safety rules for this
+public repo and the API naming conventions — live in `Agent.MD`.
 
 ## Trademarks
 

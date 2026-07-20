@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import {
   Locator,
   LocatorResolutionError,
@@ -58,6 +59,20 @@ export interface DeviceCommandLogEntry {
   error?: string;
 }
 
+export interface RawActionOptions {
+  /**
+   * Command-log row name override. Coordinate gestures are semantically
+   * opaque in a log ("tap-point" at 200,500 — of what?), so callers tapping
+   * frame-derived or AX-invisible targets should say what they meant.
+   */
+  command?: string;
+}
+
+export interface LongPressOptions extends RawActionOptions {
+  /** Hold duration; the driver's default applies when omitted. */
+  holdMs?: number;
+}
+
 export interface TapLabelOptions {
   /** How long AXe should wait for the label to exist before tapping. */
   waitTimeout?: number;
@@ -89,6 +104,8 @@ export class Device {
   private tail: Promise<void> = Promise.resolve();
   private sequence = 0;
   private readonly log: DeviceCommandLogEntry[] = [];
+  /** Set while the current async context holds this device's queue slot. */
+  private readonly holdingQueue = new AsyncLocalStorage<true>();
 
   constructor(
     readonly name: string,
@@ -146,19 +163,25 @@ export class Device {
     return this.enqueue(
       "inspect",
       async () =>
-        locator.matchesFrom(normalizeAxeTree(await this.driver.describeUi()))
+        locator.matchesIn(normalizeAxeTree(await this.driver.describeUi()), {
+          strict: true,
+        })
           .length,
     );
   }
 
-  /** Non-strict match count for presence checks; see Locator.exists(). */
+  /**
+   * Non-strict match count — plumbing for Locator.isPresent()/waitForGone().
+   * Consumers should reach for the Locator methods, not this.
+   */
   async presenceCount(locator: Locator): Promise<number> {
-    return this.enqueue(
-      "inspect",
-      async () =>
-        locator.presenceMatches(
-          normalizeAxeTree(await this.driver.describeUi()),
-        ).length,
+    return (await this.presentNodes(locator)).length;
+  }
+
+  /** Non-strict matching nodes from one fresh snapshot; see Locator.presentNodes(). */
+  async presentNodes(locator: Locator): Promise<AccessibilityNode[]> {
+    return this.enqueue("inspect", async () =>
+      locator.matchesIn(normalizeAxeTree(await this.driver.describeUi())),
     );
   }
 
@@ -173,9 +196,7 @@ export class Device {
   ): Promise<Locator | undefined> {
     return this.enqueue("inspect", async () => {
       const tree = normalizeAxeTree(await this.driver.describeUi());
-      return locators.find(
-        (locator) => locator.presenceMatches(tree).length > 0,
-      );
+      return locators.find((locator) => locator.matchesIn(tree).length > 0);
     });
   }
 
@@ -203,12 +224,12 @@ export class Device {
         await this.enqueue("tap", () => this.tapOnce(locator, options));
       } catch (error) {
         // The control may be gone precisely because an earlier tap landed.
-        if (await until.exists()) return;
+        if (await until.isPresent()) return;
         throw error;
       }
 
       try {
-        await poll(() => until.exists(), {
+        await poll(() => until.isPresent(), {
           timeout: settleTimeout,
           interval,
           clock: this.clock,
@@ -225,10 +246,25 @@ export class Device {
     );
   }
 
-  /** Coordinate tap through the device queue and command log. */
-  async tapPoint(x: number, y: number): Promise<void> {
-    await this.enqueue("tap-point", () =>
+  /**
+   * Coordinate tap through the device queue and command log. `command` names
+   * the log row — coordinate taps are semantically opaque, so a tag like
+   * `numpad-7` is the difference between a readable log and noise.
+   */
+  async tapPoint(x: number, y: number, options: RawActionOptions = {}): Promise<void> {
+    await this.enqueue(options.command ?? "tap-point", () =>
       this.driver.tap({ kind: "point", x, y }),
+    );
+  }
+
+  /** Long-press at a point; requires driver support. See tapPoint on `command`. */
+  async longPress(x: number, y: number, options: LongPressOptions = {}): Promise<void> {
+    const longPress = this.driver.longPress?.bind(this.driver);
+    if (!longPress) {
+      throw new Error("The configured AXe driver does not support long-presses.");
+    }
+    await this.enqueue(options.command ?? "long-press", () =>
+      longPress(x, y, options.holdMs),
     );
   }
 
@@ -259,12 +295,12 @@ export class Device {
     });
   }
 
-  async swipe(gesture: AxeSwipeGesture): Promise<void> {
+  async swipe(gesture: AxeSwipeGesture, options: RawActionOptions = {}): Promise<void> {
     const swipe = this.driver.swipe?.bind(this.driver);
     if (!swipe) {
       throw new Error("The configured AXe driver does not support swipes.");
     }
-    await this.enqueue("swipe", () => swipe(gesture));
+    await this.enqueue(options.command ?? "swipe", () => swipe(gesture));
   }
 
   /**
@@ -272,9 +308,16 @@ export class Device {
    * so work that bypasses the typed surface (biometric triggers, app
    * lifecycle, raw driver calls) still serializes with queued commands and
    * shows up in commandLog() with real timings.
+   *
+   * Reentrancy is safe: device calls made INSIDE the operation run inline on
+   * the already-held queue slot (still logged) instead of deadlocking behind
+   * it.
    */
-  async recordAction<T>(name: string, operation: () => Promise<T>): Promise<T> {
-    return this.enqueue(name, operation);
+  async recordAction<T>(
+    command: DeviceCommandName,
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    return this.enqueue(command, operation);
   }
 
   async typeInto(
@@ -435,6 +478,13 @@ export class Device {
     command: DeviceCommandName,
     operation: () => Promise<T>,
   ): Promise<T> {
+    if (this.holdingQueue.getStore()) {
+      // The current async context already holds this device's queue slot —
+      // a device call nested inside recordAction(). Run inline (still
+      // logged); waiting on the tail here would deadlock behind ourselves.
+      return this.execute(command, operation);
+    }
+
     const previous = this.tail;
     let release: (() => void) | undefined;
     this.tail = new Promise<void>((resolve) => {
@@ -442,6 +492,19 @@ export class Device {
     });
 
     await previous;
+    try {
+      return await this.holdingQueue.run(true, () =>
+        this.execute(command, operation),
+      );
+    } finally {
+      release?.();
+    }
+  }
+
+  private async execute<T>(
+    command: DeviceCommandName,
+    operation: () => Promise<T>,
+  ): Promise<T> {
     const sequence = ++this.sequence;
     const startedAt = this.clock.now();
     try {
@@ -464,8 +527,6 @@ export class Device {
         error: error instanceof Error ? error.message : String(error),
       });
       throw error;
-    } finally {
-      release?.();
     }
   }
 }

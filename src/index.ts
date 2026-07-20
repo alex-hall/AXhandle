@@ -25,6 +25,8 @@ export type {
   DeviceCommandStatus,
   DeviceOptions,
   DeviceTimeouts,
+  LongPressOptions,
+  RawActionOptions,
   TapLabelOptions,
   UiSnapshot,
 } from "./device.js";
@@ -58,6 +60,7 @@ export type {
   LaunchSimulatorAppOptions,
   SimulatorCommandResult,
   SimulatorCommandRunner,
+  SimulatorCommandRunnerOptions,
   SimulatorController,
 } from "./simulator-control.js";
 export { normalizeAxeNode, normalizeAxeTree } from "./tree.js";

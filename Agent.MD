@@ -34,3 +34,30 @@ it may be published.
 - Do not publish, push, or send anything externally unless explicitly asked.
 - If there is any doubt about whether material is public, treat it as private
   and ask before adding it.
+
+## Naming conventions
+
+The public API holds to a small set of naming rules; new surface must too.
+
+- **Strict vs. present.** Interaction-grade APIs (`resolve`, `count`,
+  `inspect`, every action) are strict: one element or an error. The
+  non-strict concept is always spelled *present*: `isPresent()`,
+  `waitForPresent()`, `waitForGone()`, `presentNodes()`, `firstPresent()`.
+  `matchesIn(tree)` is presence by default and takes `{ strict: true }` for
+  interaction-grade snapshot matching.
+- **Durations are milliseconds, everywhere.** Names containing `timeout` or
+  `interval` carry no unit suffix (`timeout`, `settleTimeout`, `waitTimeout`,
+  `finalizeTimeout`). Other durations spell the unit (`holdMs`, `durationMs`).
+  Driver-boundary parameters may suffix for unit-conversion clarity
+  (`waitTimeoutMs` — the AXe CLI takes seconds; the conversion happens
+  exactly there).
+- **Command-log names.** Built-in commands are kebab-case (`tap-point`,
+  `tap-label`, `long-press`). Consumer-chosen names (`recordAction`, the
+  `command` option on coordinate gestures) are free-form; prefer dotted
+  namespaces for grouped actions (`app.launch`, `biometric.match`) and
+  kebab-case otherwise (`numpad-7`).
+- **Layer prefixes.** Driver-boundary types carry `Axe*` (`AxeDriver`,
+  `AxeTapTarget`, `AxeSwipeGesture`); simulator-control types carry
+  `Simulator*`; errors are `<Domain><Failure>Error`.
+- **Deprecated aliases** (`click`/`ClickOptions`, `matchesFrom`) survive
+  until 1.0 and no new code should use them.

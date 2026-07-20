@@ -99,11 +99,11 @@ describe("presence primitives", () => {
     children: [text("Saved"), text("Saved")]
   };
 
-  it("exists() answers presence without strictness", async () => {
+  it("isPresent() answers presence without strictness", async () => {
     const device = new Device("primary", new FixtureAxeDriver(duplicated));
 
-    await expect(device.findByLabel("Saved").exists()).resolves.toBe(true);
-    await expect(device.findByLabel("Missing").exists()).resolves.toBe(false);
+    await expect(device.findByLabel("Saved").isPresent()).resolves.toBe(true);
+    await expect(device.findByLabel("Missing").isPresent()).resolves.toBe(false);
     // The same ambiguous query is an error for interaction-grade resolution.
     await expect(device.findByLabel("Saved").resolve()).rejects.toThrow(
       "expected one matching accessible element"
@@ -159,10 +159,10 @@ describe("substring queries", () => {
   it("matches labels case-insensitively across no-break spaces", async () => {
     const device = new Device("primary", new FixtureAxeDriver(screen));
 
-    await expect(device.findByLabel("ada lovelace", { exact: false }).exists()).resolves.toBe(true);
-    await expect(device.findByText("room", { exact: false }).exists()).resolves.toBe(true);
+    await expect(device.findByLabel("ada lovelace", { exact: false }).isPresent()).resolves.toBe(true);
+    await expect(device.findByText("room", { exact: false }).isPresent()).resolves.toBe(true);
     // The exact query keeps its trap: an ASCII space never equals U+00A0.
-    await expect(device.findByLabel("Ada Lovelace").exists()).resolves.toBe(false);
+    await expect(device.findByLabel("Ada Lovelace").isPresent()).resolves.toBe(false);
   });
 
   it("describes non-exact queries distinctly", () => {
@@ -279,5 +279,178 @@ describe("recordAction and log windowing", () => {
     expect(window).toHaveLength(1);
     expect(window[0]).toMatchObject({ command: "inside" });
     expect(device.commandLog()).toHaveLength(2);
+  });
+});
+
+describe("waitForPresent", () => {
+  it("resolves when a match appears and reports absence on timeout", async () => {
+    const empty = { role_description: "application", children: [] };
+    const withBanner = {
+      role_description: "application",
+      children: [text("Connected")],
+    };
+    const device = new Device(
+      "primary",
+      new SequenceDriver([empty, empty, withBanner]),
+      { clock: fakeClock() },
+    );
+
+    await expect(
+      device.findByLabel("Connected").waitForPresent(),
+    ).resolves.toBeUndefined();
+
+    const never = new Device("primary", new SequenceDriver([empty]), {
+      clock: fakeClock(),
+    });
+    await expect(
+      never.findByLabel("Connected").waitForPresent({ timeout: 300 }),
+    ).rejects.toThrow(/never appeared within 300ms/);
+  });
+});
+
+describe("non-strict reads", () => {
+  const roster = {
+    role_description: "application",
+    children: [
+      text("AB, Ada Lovelace, View Profile, Forward"),
+      text("GH, Grace Hopper, View Profile, Forward"),
+    ],
+  };
+
+  it("presentNodes() returns matched content without strictness", async () => {
+    const device = new Device("primary", new FixtureAxeDriver(roster));
+
+    const rows = await device
+      .findByLabel("View Profile", { exact: false })
+      .presentNodes();
+
+    expect(rows.map((row) => row.label)).toEqual([
+      "AB, Ada Lovelace, View Profile, Forward",
+      "GH, Grace Hopper, View Profile, Forward",
+    ]);
+    await expect(
+      device.findByLabel("Missing", { exact: false }).presentNodes(),
+    ).resolves.toEqual([]);
+  });
+
+  it("matchesIn() answers many queries from one snapshot fetch", async () => {
+    const keypad = {
+      role_description: "application",
+      children: ["1", "2", "3"].map((digit) => ({
+        role_description: "button",
+        AXLabel: digit,
+        frame: { x: Number(digit) * 100, y: 600, width: 80, height: 80 },
+        children: [],
+      })),
+    };
+    const driver = new SequenceDriver([keypad]);
+    const device = new Device("primary", driver);
+
+    const { tree } = await device.uiSnapshot();
+    const frames = ["3", "1", "2"].map(
+      (digit) => device.findByLabel(digit).matchesIn(tree)[0]?.frame?.x,
+    );
+
+    expect(frames).toEqual([300, 100, 200]);
+    expect(driver.reads).toBe(1);
+  });
+});
+
+describe("named raw actions and reentrancy", () => {
+  class GestureDriver implements AxeDriver {
+    readonly tapTargets: AxeTapTarget[] = [];
+    readonly longPresses: Array<{ x: number; y: number; holdMs?: number }> = [];
+
+    async describeUi(): Promise<unknown> {
+      return { role_description: "application", children: [] };
+    }
+
+    async tap(target: AxeTapTarget): Promise<void> {
+      this.tapTargets.push(target);
+    }
+
+    async longPress(x: number, y: number, holdMs?: number): Promise<void> {
+      this.longPresses.push({ x, y, holdMs });
+    }
+
+    async type(_text: string): Promise<void> {}
+    async keyCombo(_modifiers: readonly number[], _key: number): Promise<void> {}
+  }
+
+  it("tags coordinate gestures with caller-chosen log names", async () => {
+    const driver = new GestureDriver();
+    const device = new Device("primary", driver);
+
+    await device.tapPoint(150, 620, { command: "numpad-7" });
+    await device.longPress(200, 420, { holdMs: 900, command: "copy-link" });
+
+    expect(driver.longPresses).toEqual([{ x: 200, y: 420, holdMs: 900 }]);
+    const commands = device.commandLog().map((entry) => entry.command);
+    expect(commands).toEqual(["numpad-7", "copy-link"]);
+  });
+
+  it("fails explicitly when the driver lacks long-press", async () => {
+    const device = new Device("primary", new FixtureAxeDriver({ children: [] }));
+
+    await expect(device.longPress(0, 0)).rejects.toThrow(
+      "does not support long-presses",
+    );
+  });
+
+  it("allows device calls nested inside recordAction without deadlock", async () => {
+    const driver = new GestureDriver();
+    const device = new Device("primary", driver);
+
+    await device.recordAction("enter-passcode", async () => {
+      await device.tapPoint(100, 600, { command: "numpad-1" });
+      await device.tapPoint(200, 600, { command: "numpad-2" });
+    });
+
+    expect(driver.tapTargets).toHaveLength(2);
+    const commands = device.commandLog().map((entry) => entry.command);
+    expect(commands).toEqual(["numpad-1", "numpad-2", "enter-passcode"]);
+  });
+
+  it("still serializes concurrent recordAction calls against queued commands", async () => {
+    const driver = new GestureDriver();
+    const device = new Device("primary", driver);
+    const order: string[] = [];
+
+    await Promise.all([
+      device.recordAction("first", async () => {
+        order.push("first-start");
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        order.push("first-end");
+      }),
+      device.recordAction("second", async () => {
+        order.push("second");
+      }),
+    ]);
+
+    expect(order).toEqual(["first-start", "first-end", "second"]);
+  });
+});
+
+describe("matchesIn strictness", () => {
+  it("defaults to presence semantics and matches resolve() under { strict: true }", async () => {
+    const duplicated = {
+      role_description: "application",
+      children: [text("Saved"), text("Saved")]
+    };
+    const device = new Device("primary", new FixtureAxeDriver(duplicated));
+    const { tree } = await device.uiSnapshot();
+    const saved = device.findByLabel("Saved");
+
+    expect(saved.matchesIn(tree)).toHaveLength(2);
+    // Strict keeps interaction-grade behavior: a duplicated FINAL segment
+    // returns all matches (strictness applies to intermediate scopes)...
+    expect(saved.matchesIn(tree, { strict: true })).toHaveLength(2);
+    // ...but a scoped query under an ambiguous intermediate scope throws.
+    expect(() =>
+      saved.findByText("anything").matchesIn(tree, { strict: true })
+    ).toThrow("expected one matching accessible element");
+    expect(saved.findByText("anything").matchesIn(tree)).toEqual([]);
+    // The 0.1.x-era alias keeps strict behavior until 1.0.
+    expect(saved.matchesFrom(tree)).toHaveLength(2);
   });
 });

@@ -155,12 +155,38 @@ export class Locator {
    * the screen-detection question ("which screen am I on?"), not the
    * interaction question ("which one element do I mean?").
    */
-  async exists(): Promise<boolean> {
+  async isPresent(): Promise<boolean> {
     return (await this.device.presenceCount(this)) > 0;
+  }
+
+  /**
+   * Every matching node from one fresh snapshot, presence semantics. This is
+   * the non-strict READ — when the matched content itself is the answer (for
+   * example parsing a rendered row label that is the only reliable ground
+   * truth for what the app actually shows).
+   */
+  async presentNodes(): Promise<AccessibilityNode[]> {
+    return this.device.presentNodes(this);
   }
 
   async waitForVisible(options?: WaitOptions): Promise<AccessibilityNode> {
     return this.waitFor((node) => node.visible, options);
+  }
+
+  /** Waits until something matching is on screen (presence semantics). */
+  async waitForPresent(options: WaitOptions = {}): Promise<void> {
+    const timeout = options.timeout ?? this.device.timeouts.assertion;
+    const interval = options.interval ?? this.device.timeouts.interval;
+
+    await poll(async () => (await this.device.presenceCount(this)) > 0, {
+      timeout,
+      interval,
+      clock: this.device.clock,
+      onTimeout: () =>
+        new LocatorTimeoutError(
+          `${this.describe()} never appeared within ${timeout}ms.`,
+        ),
+    });
   }
 
   /** Waits until nothing matching remains on screen (presence semantics). */
@@ -272,7 +298,7 @@ export class Locator {
 
   /** @internal Resolves this deferred query against one fresh tree. */
   resolveFrom(tree: AccessibilityTree): AccessibilityNode {
-    const matches = this.matchesFrom(tree);
+    const matches = this.matchesIn(tree, { strict: true });
     if (matches.length !== 1) {
       throw new LocatorResolutionError(
         buildStrictnessMessage(this.describe(), matches, tree.root),
@@ -284,8 +310,33 @@ export class Locator {
     return result;
   }
 
-  /** @internal Returns every final match while keeping intermediate scopes strict. */
+  /**
+   * Every matching node from a caller-held snapshot. This is THE snapshot
+   * matching API: one `uiSnapshot()` can answer many queries — mapping a
+   * screenful of controls to their frames costs one tree fetch instead of one
+   * per control, which matters when each fetch is a full `describe-ui` round
+   * trip.
+   *
+   * Default is presence semantics: every segment keeps ALL of its matches, an
+   * empty segment short-circuits to [], and nothing throws. This backs
+   * isPresent()/waitForPresent()/waitForGone()/firstPresent(), never
+   * interactions. With `strict: true` it matches interaction-grade
+   * resolution instead: intermediate scopes must be unambiguous and an
+   * out-of-range nth() is an error, exactly as resolve() sees the tree.
+   */
+  matchesIn(
+    tree: AccessibilityTree,
+    options: { strict?: boolean } = {},
+  ): AccessibilityNode[] {
+    return options.strict ? this.strictMatches(tree) : this.presentMatches(tree);
+  }
+
+  /** @deprecated Use {@link matchesIn} with `{ strict: true }`. Removed in 1.0. */
   matchesFrom(tree: AccessibilityTree): AccessibilityNode[] {
+    return this.matchesIn(tree, { strict: true });
+  }
+
+  private strictMatches(tree: AccessibilityTree): AccessibilityNode[] {
     let roots = [tree.root];
 
     for (const [segmentIndex, segment] of this.segments.entries()) {
@@ -315,12 +366,7 @@ export class Locator {
     return roots;
   }
 
-  /**
-   * @internal Presence resolution: every segment keeps ALL of its matches and
-   * an empty segment short-circuits to []. No strictness anywhere — used by
-   * exists()/waitForGone()/firstPresent(), never for interactions.
-   */
-  presenceMatches(tree: AccessibilityTree): AccessibilityNode[] {
+  private presentMatches(tree: AccessibilityTree): AccessibilityNode[] {
     let roots = [tree.root];
 
     for (const segment of this.segments) {

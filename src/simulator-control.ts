@@ -6,10 +6,16 @@ export interface SimulatorCommandResult {
   stderr: string;
 }
 
+export interface SimulatorCommandRunnerOptions {
+  environment?: Readonly<Record<string, string>>;
+  /** Piped to the command's stdin (`simctl pbcopy` reads its payload there). */
+  input?: string;
+}
+
 export interface SimulatorCommandRunner {
   run(
     args: readonly string[],
-    options?: { environment?: Readonly<Record<string, string>> }
+    options?: SimulatorCommandRunnerOptions
   ): Promise<SimulatorCommandResult>;
 }
 
@@ -30,15 +36,34 @@ export class NodeSimulatorCommandRunner implements SimulatorCommandRunner {
 
   async run(
     args: readonly string[],
-    options: { environment?: Readonly<Record<string, string>> } = {}
+    options: SimulatorCommandRunnerOptions = {}
   ): Promise<SimulatorCommandResult> {
     try {
-      const result = await this.execute("xcrun", ["simctl", ...args], {
+      const execOptions = {
         encoding: "utf8",
         env: { ...process.env, ...options.environment },
         maxBuffer: 10 * 1024 * 1024
+      } as const;
+
+      if (options.input === undefined) {
+        const result = await this.execute("xcrun", ["simctl", ...args], execOptions);
+        return { stdout: String(result.stdout), stderr: String(result.stderr) };
+      }
+
+      // promisify(execFile) hides the child, so stdin needs the callback form.
+      const input = options.input;
+      return await new Promise<SimulatorCommandResult>((resolve, reject) => {
+        const child = execFile(
+          "xcrun",
+          ["simctl", ...args],
+          execOptions,
+          (error, stdout, stderr) => {
+            if (error) reject(Object.assign(error, { stderr }));
+            else resolve({ stdout: String(stdout), stderr: String(stderr) });
+          }
+        );
+        child.stdin?.end(input);
       });
-      return { stdout: String(result.stdout), stderr: String(result.stderr) };
     } catch (error) {
       const failure = error as { stderr?: string | Buffer };
       throw new SimulatorCommandError(args, String(failure.stderr ?? ""), error);
@@ -68,6 +93,8 @@ export interface SimulatorController {
   ): Promise<string | undefined>;
   isAppInstalled(udid: string, bundleId: string): Promise<boolean>;
   resetKeychain(udid: string): Promise<void>;
+  setPasteboard(udid: string, text: string): Promise<void>;
+  getPasteboard(udid: string): Promise<string>;
   grantPermission(udid: string, service: string, bundleId: string): Promise<void>;
   revokePermission(udid: string, service: string, bundleId: string): Promise<void>;
   resetPermissions(udid: string, service?: string, bundleId?: string): Promise<void>;
@@ -135,6 +162,22 @@ export class XcrunSimulatorController implements SimulatorController {
    */
   async resetKeychain(udid: string): Promise<void> {
     await this.runner.run(["keychain", udid, "reset"]);
+  }
+
+  /**
+   * Put a string on the simulator's general pasteboard. NOTE: the pasteboard
+   * SURVIVES app uninstall/reinstall — apps that inspect the clipboard on
+   * first focus (deferred-deeplink detection is the classic) will act on
+   * whatever a previous test left there. Suites that provision fresh installs
+   * should neutralize the pasteboard deliberately.
+   */
+  async setPasteboard(udid: string, text: string): Promise<void> {
+    await this.runner.run(["pbcopy", udid], { input: text });
+  }
+
+  async getPasteboard(udid: string): Promise<string> {
+    const { stdout } = await this.runner.run(["pbpaste", udid]);
+    return stdout;
   }
 
   async grantPermission(udid: string, service: string, bundleId: string): Promise<void> {

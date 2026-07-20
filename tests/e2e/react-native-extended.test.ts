@@ -48,7 +48,7 @@ describe.skipIf(!enabled)("React Native AXe e2e — extended surface", () => {
     const centerX = list.frame.x + list.frame.width / 2;
     for (
       let attempt = 0;
-      attempt < 12 && !(await deepRow.exists());
+      attempt < 12 && !(await deepRow.isPresent());
       attempt++
     ) {
       await device.swipe({
