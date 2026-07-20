@@ -42,8 +42,8 @@ describe.skipIf(!enabled)("React Native multi-device AXe e2e", () => {
     ]);
 
     await Promise.all([
-      devices.alice.findByRole("button", { name: "Use Alice" }).click(),
-      devices.bob.findByRole("button", { name: "Use Bob" }).click()
+      devices.alice.findByRole("button", { name: "Use Alice" }).tap(),
+      devices.bob.findByRole("button", { name: "Use Bob" }).tap()
     ]);
     await Promise.all([
       expect(devices.alice.findByLabel("Identity: Alice")).toBeVisible(),
@@ -52,7 +52,7 @@ describe.skipIf(!enabled)("React Native multi-device AXe e2e", () => {
 
     await aliceInput.fill("Hello Bob", { timeout: 10_000 });
     await expect(aliceSend).toBeEnabled();
-    await aliceSend.click();
+    await aliceSend.tap();
     await expect(devices.alice.findByLabel("Delivery status: Delivered")).toBeVisible();
 
     await expect(

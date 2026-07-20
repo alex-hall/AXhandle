@@ -34,7 +34,7 @@ describe.skipIf(!enabled)("SwiftUI AXe e2e", () => {
     await message.fill("Hello from SwiftUI", { timeout: 10_000 });
     await expect(message).toHaveValue("Hello from SwiftUI");
     await expect(send).toBeEnabled();
-    await send.click();
+    await send.tap();
     await expect(device.findByLabel("Delivery status: Delivered")).toBeVisible();
   }, 45_000);
 });
