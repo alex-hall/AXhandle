@@ -2,7 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 0.1.1
+
+### Added
+
+- The npm tarball now ships `src/` alongside `dist/`, so the existing
+  declaration maps resolve into real TypeScript source — editors land
+  go-to-definition in `.ts`, not `.d.ts`, from a plain npm install.
+
+### Changed
+
+- Index-signature reads in the accessibility-tree normalization use bracket
+  access. No behavior change; the source now also compiles cleanly for
+  consumers who type-check it under stricter flags (for example
+  `noPropertyAccessFromIndexSignature`).
+
+## 0.1.0
 
 ### Added
 
