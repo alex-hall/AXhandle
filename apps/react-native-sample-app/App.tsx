@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import {
+  Alert,
   Pressable,
+  ScrollView,
   StyleSheet,
   Switch,
   Text,
@@ -29,6 +31,8 @@ function App() {
   const [latestMessageId, setLatestMessageId] = useState(0);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const [showExercises, setShowExercises] = useState(false);
+  const [alertChoice, setAlertChoice] = useState('none');
   const canSend = identity !== undefined && message.trim().length > 0;
 
   useEffect(() => {
@@ -94,6 +98,52 @@ function App() {
     }
   };
 
+  if (showExercises) {
+    return (
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.container} testID="exercises-screen">
+          <Text style={styles.title}>Exercises</Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() =>
+              Alert.alert('Proceed?', 'This exercises native alert buttons.', [
+                {
+                  text: 'Cancel',
+                  style: 'cancel',
+                  onPress: () => setAlertChoice('cancelled'),
+                },
+                { text: 'Confirm', onPress: () => setAlertChoice('confirmed') },
+              ])
+            }
+            style={styles.button}
+            testID="rn-show-alert">
+            <Text style={styles.buttonText}>Show Alert</Text>
+          </Pressable>
+          <Text accessibilityLabel={`Alert choice: ${alertChoice}`}>
+            {`Alert choice: ${alertChoice}`}
+          </Text>
+          <ScrollView style={styles.exerciseList} testID="rn-exercise-list">
+            {Array.from({ length: 30 }, (_, index) => (
+              <Text
+                key={index}
+                style={styles.exerciseRow}
+                testID={`rn-row-${index + 1}`}>
+                {`Row ${index + 1}`}
+              </Text>
+            ))}
+          </ScrollView>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setShowExercises(false)}
+            style={styles.button}
+            testID="exercises-back">
+            <Text style={styles.buttonText}>Back</Text>
+          </Pressable>
+        </SafeAreaView>
+      </SafeAreaProvider>
+    );
+  }
+
   if (showDetails) {
     return (
       <SafeAreaProvider>
@@ -114,6 +164,14 @@ function App() {
     <SafeAreaProvider>
       <SafeAreaView style={styles.container} testID="sample-root">
         <Text style={styles.title}>AXe React Native Sample</Text>
+
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setShowExercises(true)}
+          style={styles.secondaryButton}
+          testID="exercises-link">
+          <Text style={styles.secondaryButtonText}>Exercises</Text>
+        </Pressable>
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Peer identity</Text>
@@ -205,6 +263,15 @@ function App() {
 }
 
 const styles = StyleSheet.create({
+  exerciseList: {
+    flexGrow: 0,
+    height: 320,
+    marginVertical: 12,
+  },
+  exerciseRow: {
+    fontSize: 18,
+    paddingVertical: 14,
+  },
   container: {
     backgroundColor: '#ffffff',
     flex: 1,
