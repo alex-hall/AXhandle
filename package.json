@@ -15,11 +15,11 @@
   "author": "Alex Hall <me@jalexhall.com>",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/alex-hall/axhandle.git"
+    "url": "git+https://github.com/alex-hall/AXhandle.git"
   },
-  "homepage": "https://github.com/alex-hall/axhandle#readme",
+  "homepage": "https://github.com/alex-hall/AXhandle#readme",
   "bugs": {
-    "url": "https://github.com/alex-hall/axhandle/issues"
+    "url": "https://github.com/alex-hall/AXhandle/issues"
   },
   "license": "MIT",
   "type": "module",
