@@ -1,3 +1,5 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import type { Device } from "./device.js";
 
 export type AxeArtifact =
@@ -30,6 +32,38 @@ export class InMemoryArtifactSink implements ArtifactSink {
 
   async write(artifact: AxeArtifact): Promise<void> {
     this.artifacts.push(artifact);
+  }
+}
+
+/**
+ * Writes each artifact as a file in one directory — the production default
+ * for retaining failure evidence. Screenshot artifacts are already on disk at
+ * their own path, so only JSON and text artifacts need materializing here.
+ */
+export class DirectoryArtifactSink implements ArtifactSink {
+  private captureErrors = 0;
+
+  constructor(private readonly directory: string) {
+    mkdirSync(directory, { recursive: true });
+  }
+
+  async write(artifact: AxeArtifact): Promise<void> {
+    switch (artifact.kind) {
+      case "screenshot":
+        return;
+      case "capture-error":
+        this.captureErrors += 1;
+        writeFileSync(
+          join(this.directory, `capture-error-${this.captureErrors}.txt`),
+          artifact.message
+        );
+        return;
+      default:
+        writeFileSync(
+          join(this.directory, `${artifact.kind}.json`),
+          JSON.stringify(artifact.body, null, 2)
+        );
+    }
   }
 }
 

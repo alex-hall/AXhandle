@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import type { AxeDriver, AxeTapTarget } from "./types.js";
+import type { AxeDriver, AxeSwipeGesture, AxeTapTarget } from "./types.js";
 
 export interface AxeCommandResult {
   stdout: string;
@@ -108,6 +108,36 @@ export class AxeCliDriver implements AxeDriver {
     await this.runner.run(["tap", ...targetArgs, "--udid", this.options.udid]);
   }
 
+  async tapLabel(label: string, waitTimeoutMs?: number): Promise<void> {
+    await this.runner.run([
+      "tap",
+      "--label",
+      label,
+      ...(waitTimeoutMs === undefined ? [] : ["--wait-timeout", formatSeconds(waitTimeoutMs)]),
+      "--udid",
+      this.options.udid
+    ]);
+  }
+
+  async swipe(gesture: AxeSwipeGesture): Promise<void> {
+    await this.runner.run([
+      "swipe",
+      "--start-x",
+      String(gesture.startX),
+      "--start-y",
+      String(gesture.startY),
+      "--end-x",
+      String(gesture.endX),
+      "--end-y",
+      String(gesture.endY),
+      ...(gesture.durationMs === undefined
+        ? []
+        : ["--duration", formatSeconds(gesture.durationMs)]),
+      "--udid",
+      this.options.udid
+    ]);
+  }
+
   async type(text: string): Promise<void> {
     await this.runner.run(["type", text, "--udid", this.options.udid]);
   }
@@ -135,3 +165,6 @@ export class AxeCliDriver implements AxeDriver {
     return stdout.trim() || output;
   }
 }
+
+/** AXe's duration flags take seconds; the public API stays in milliseconds. */
+const formatSeconds = (milliseconds: number): string => String(milliseconds / 1000);

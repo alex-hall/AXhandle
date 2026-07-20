@@ -24,7 +24,7 @@ simulator UDID and owns app-specific provisioning and reset behavior.
 ```ts
 const thread = device.findByTestId("thread");
 
-await thread.findByRole("button", { name: "Send" }).click();
+await thread.findByRole("button", { name: "Send" }).tap();
 await expect(thread.findByText("Delivered")).toBeVisible();
 ```
 
@@ -59,14 +59,14 @@ export const test = createAxeTest({
   createDevices: () => ({
     primary: new Device(
       "primary",
-      new AxeCliDriver({ udid: process.env.PRIMARY_SIMULATOR_UDID! })
-    )
+      new AxeCliDriver({ udid: process.env.PRIMARY_SIMULATOR_UDID! }),
+    ),
   }),
 
   reset: async ({ devices }) => {
     // Application-specific cleanup belongs to the consumer.
-    await devices.primary.findByTestId("account").click();
-  }
+    await devices.primary.findByTestId("account").tap();
+  },
 });
 ```
 
@@ -80,7 +80,7 @@ test("sends a message", async ({ devices }) => {
   const message = device.findByTestId("message-input");
 
   await message.type("Hello");
-  await device.findByRole("button", { name: "Send" }).click();
+  await device.findByRole("button", { name: "Send" }).tap();
   await expect(device.findByText("Delivered")).toBeVisible();
 });
 ```
@@ -95,7 +95,7 @@ Favor selectors a person could understand from the interface: roles and their
 accessible names first, then visible text or labels. For example:
 
 ```ts
-await device.findByRole("button", { name: "Send" }).click();
+await device.findByRole("button", { name: "Send" }).tap();
 await expect(device.findByText("Delivered")).toBeVisible();
 ```
 
@@ -110,12 +110,95 @@ searches without a new abstraction:
 
 ```ts
 const body = device.findByTestId("body");
-await body.findByRole("button", { name: "Send" }).click();
+await body.findByRole("button", { name: "Send" }).tap();
 ```
 
 Scope is hierarchy-strict. Some visual containers, including the public
 SwiftUI and React Native sample composer, are flattened by AXe into sibling
 elements; a visual container is not a valid scope in that shape.
+
+## Presence, absence, and screen detection
+
+Interactions are strict — one element, or an error. Presence questions are
+different: "is the toast gone yet?" or "which screen am I on?" want a
+non-strict answer, not an ambiguity error.
+
+```ts
+if (await device.findByLabel("Saved").exists()) {
+  /* … */
+}
+await device.findByLabel("Uploading").waitForGone();
+
+// One accessibility snapshot answers a multi-screen race:
+const seen = await device.firstPresent(welcome, home);
+if (seen === home) {
+  /* already signed in */
+}
+```
+
+`findByText` and `findByLabel` accept `{ exact: false }` for normalized
+substring matching: case-insensitive, and no-break spaces (which some
+frameworks, React Native included, use to join composite labels) match
+ordinary spaces. Exact matching stays exact — an ASCII space never equals
+U+00A0.
+
+## Navigation taps that verify arrival
+
+A "successful" tap is not proof of navigation: a control can render before its
+touch handler attaches, and overlays or first-run tooltips can swallow the
+first tap. `tap({ until })` retries the tap until an arrival locator is
+present, tolerating a control that vanished because an earlier tap did land:
+
+```ts
+await device.findByLabel("Continue").tap({
+  until: device.findByLabel("Welcome"),
+  attempts: 3,
+});
+```
+
+> `click()` (from 0.1.x) remains a deprecated alias for `tap()` and will be
+> removed in 1.0 — iOS has taps, not clicks.
+
+## System alerts, gestures, and raw taps
+
+Native alert buttons frequently never appear in `describe-ui`, so tree-based
+locators cannot reach them — but AXe's own label tap still lands. `tapLabel`
+exposes it (including AXe's `--wait-timeout` presence polling), and
+`optional: true` makes it the standard way to drain an alert whose arrival
+races the flow:
+
+```ts
+await device.tapLabel("Allow", { waitTimeout: 5_000, optional: true });
+await device.swipe({
+  startX: 200,
+  startY: 650,
+  endX: 200,
+  endY: 250,
+  durationMs: 400,
+});
+await device.tapPoint(200, 500);
+```
+
+No actionability check happens on these paths — use them where the next wait
+in the flow verifies the outcome. All three run through the device queue and
+command log. On the driver contract they are optional capabilities;
+`AxeCliDriver` implements them all.
+
+## Command log and step timing
+
+Every queued operation lands in `device.commandLog()` with real timings.
+`recordAction` folds out-of-band work (app lifecycle, biometric triggers, raw
+driver calls) into the same queue and log so one log is the whole truth, and
+`commandMark()` + `commandLog({ after })` window it for per-step attribution:
+
+```ts
+const mark = device.commandMark();
+await device.recordAction("app.launch", () =>
+  simulator.launch({ udid, bundleId }),
+);
+await signIn(device);
+const actionsInsideStep = device.commandLog({ after: mark });
+```
 
 ## Failure evidence
 
@@ -133,13 +216,21 @@ export const test = createAxeTest({
   evidence: {
     sink: evidence,
     capture: "failure",
-    screenshotPath: (device) => `artifacts/${device.name}.png`
-  }
+    screenshotPath: (device) => `artifacts/${device.name}.png`,
+  },
 });
 ```
 
 Evidence is collected before `reset`. Capture and reset failures do not replace
 the original test failure.
+
+`DirectoryArtifactSink` writes each artifact as a file in a directory of your
+choice — the production default for retained evidence. For screen recordings,
+`SimulatorVideoRecorder` wraps `simctl io recordVideo` with the lifecycle a
+record-always policy needs: `start()` before the test, `discard()` on pass,
+`stop()` on failure to keep the file. Finalization is SIGINT-only — any other
+way of ending the recorder process corrupts the file — and stop is
+deadline-bounded so a wedged recorder cannot hang teardown.
 
 ## Multiple devices
 
@@ -152,21 +243,21 @@ export const test = createAxeTest({
   deviceProvider: {
     allocate: async () => ({
       alice: await allocateSimulator("alice"),
-      bob: await allocateSimulator("bob")
+      bob: await allocateSimulator("bob"),
     }),
     release: async ({ alice, bob }) => {
       await Promise.all([releaseSimulator(alice), releaseSimulator(bob)]);
-    }
+    },
   },
   reset: async ({ devices }) => {
     await Promise.all([resetApp(devices.alice), resetApp(devices.bob)]);
-  }
+  },
 });
 
 test("synchronizes two peers", async ({ devices }) => {
   await Promise.all([
-    devices.alice.findByRole("button", { name: "Send" }).click(),
-    devices.bob.findByText("Incoming message").waitForVisible()
+    devices.alice.findByRole("button", { name: "Send" }).tap(),
+    devices.bob.findByText("Incoming message").waitForVisible(),
   ]);
 });
 ```
@@ -224,12 +315,11 @@ There are three timeout levels:
 
 ```ts
 const device = new Device("primary", driver, {
-  timeouts: { action: 5_000, assertion: 10_000 }
+  timeouts: { action: 5_000, assertion: 10_000 },
 });
 
-await device.findByTestId("send").click({ timeout: 8_000 });
-await expect(device.findByText("Delivered"))
-  .toBeVisible({ timeout: 15_000 });
+await device.findByTestId("send").tap({ timeout: 8_000 });
+await expect(device.findByText("Delivered")).toBeVisible({ timeout: 15_000 });
 ```
 
 Prefer a visible condition or assertion over an arbitrary delay. The public API
@@ -248,7 +338,7 @@ import { diagnoseAxe } from "axhandle";
 
 const report = await diagnoseAxe({
   udid: process.env.PRIMARY_SIMULATOR_UDID!,
-  screenshotPath: "artifacts/doctor.png" // optional
+  screenshotPath: "artifacts/doctor.png", // optional
 });
 
 if (!report.healthy) {
@@ -283,13 +373,25 @@ const simulator = new XcrunSimulatorController();
 await simulator.install(udid, "/path/to/Example.app");
 await simulator.grantPermission(udid, "photos", "dev.example.app");
 await simulator.launch({ udid, bundleId: "dev.example.app" });
+
+// Deterministic first-run state: the simulator keychain SURVIVES uninstall,
+// and leftover identities are a classic source of flaky signup flows.
+await simulator.uninstall(udid, "dev.example.app");
+await simulator.resetKeychain(udid);
+if (await simulator.isAppInstalled(udid, "dev.example.app")) {
+  /* … */
+}
 ```
 
-Biometric simulation is a separate `BiometricController` interface. The
-default `UnsupportedBiometricController` throws clearly because the validated
-Xcode 26.6 `simctl` installation exposes no biometric command. Inject a
-verified platform-specific adapter for Face ID enrollment, match, and
-non-match; it is not an AXe capability.
+Biometric simulation is a separate `BiometricController` interface; it is not
+an AXe capability. `NotifyutilBiometricController` drives BiometricKit over
+the simulator's Darwin notification bridge (`simctl spawn <udid> notifyutil`)
+— the same mechanism behind Simulator.app's Features menu — for enrollment,
+match, and non-match. Note the biometric prompt itself is system UI outside
+the app's accessibility tree: `describe-ui` cannot observe it, so sequence
+matches against an app-level observable and verify the outcome in the app.
+The default remains `UnsupportedBiometricController`, which throws clearly,
+because the validated Xcode 26.6 `simctl` exposes no biometric command.
 
 ## Safety
 

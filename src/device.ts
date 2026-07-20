@@ -1,14 +1,21 @@
-import { Locator, LocatorResolutionError, LocatorTimeoutError } from "./locator.js";
+import {
+  Locator,
+  LocatorResolutionError,
+  LocatorTimeoutError,
+} from "./locator.js";
+import type { TapOptions, TextQueryOptions } from "./locator.js";
+import { poll, PollTimeoutError } from "./poll.js";
 import { checkedState } from "./state.js";
 import { normalizeAxeTree } from "./tree.js";
 import type {
   AccessibilityNode,
   AccessibilityTree,
   AxeDriver,
+  AxeSwipeGesture,
   AxeTapTarget,
   Clock,
   FillOptions,
-  WaitOptions
+  WaitOptions,
 } from "./types.js";
 import { systemClock } from "./types.js";
 
@@ -25,13 +32,40 @@ export interface DeviceOptions {
 
 export type DeviceCommandStatus = "passed" | "failed";
 
+/**
+ * Built-in command names, plus any name given to recordAction() — every
+ * timed operation on a device shares this one log.
+ */
+export type DeviceCommandName =
+  | "inspect"
+  | "tap"
+  | "tap-point"
+  | "tap-label"
+  | "swipe"
+  | "type"
+  | "fill"
+  | "check"
+  | "uncheck"
+  | "screenshot"
+  | (string & {});
+
 export interface DeviceCommandLogEntry {
   sequence: number;
-  command: "inspect" | "click" | "type" | "fill" | "check" | "uncheck" | "screenshot";
+  command: DeviceCommandName;
   startedAt: number;
   finishedAt: number;
   status: DeviceCommandStatus;
   error?: string;
+}
+
+export interface TapLabelOptions {
+  /** How long AXe should wait for the label to exist before tapping. */
+  waitTimeout?: number;
+  /**
+   * `optional: true` returns false instead of throwing when the tap fails —
+   * the standard way to drain a system alert whose arrival races the flow.
+   */
+  optional?: boolean;
 }
 
 export interface UiSnapshot {
@@ -42,7 +76,7 @@ export interface UiSnapshot {
 const defaultTimeouts: DeviceTimeouts = {
   action: 3_000,
   assertion: 5_000,
-  interval: 100
+  interval: 100,
 };
 
 /**
@@ -59,7 +93,7 @@ export class Device {
   constructor(
     readonly name: string,
     private readonly driver: AxeDriver,
-    options: DeviceOptions = {}
+    options: DeviceOptions = {},
   ) {
     this.clock = options.clock ?? systemClock;
     this.timeouts = { ...defaultTimeouts, ...options.timeouts };
@@ -69,12 +103,22 @@ export class Device {
     return Locator.from(this, { kind: "testId", value });
   }
 
-  findByText(value: string): Locator {
-    return Locator.from(this, { kind: "text", value });
+  findByText(value: string, options: TextQueryOptions = {}): Locator {
+    return Locator.from(
+      this,
+      options.exact === false
+        ? { kind: "text", value, exact: false }
+        : { kind: "text", value },
+    );
   }
 
-  findByLabel(value: string): Locator {
-    return Locator.from(this, { kind: "label", value });
+  findByLabel(value: string, options: TextQueryOptions = {}): Locator {
+    return Locator.from(
+      this,
+      options.exact === false
+        ? { kind: "label", value, exact: false }
+        : { kind: "label", value },
+    );
   }
 
   findByRole(role: string, options: { name?: string } = {}): Locator {
@@ -83,7 +127,7 @@ export class Device {
 
   async inspect(locator: Locator): Promise<AccessibilityNode> {
     return this.enqueue("inspect", async () =>
-      locator.resolveFrom(normalizeAxeTree(await this.driver.describeUi()))
+      locator.resolveFrom(normalizeAxeTree(await this.driver.describeUi())),
     );
   }
 
@@ -99,19 +143,145 @@ export class Device {
   }
 
   async count(locator: Locator): Promise<number> {
-    return this.enqueue("inspect", async () =>
-      locator.matchesFrom(normalizeAxeTree(await this.driver.describeUi())).length
+    return this.enqueue(
+      "inspect",
+      async () =>
+        locator.matchesFrom(normalizeAxeTree(await this.driver.describeUi()))
+          .length,
     );
   }
 
-  async click(locator: Locator, options: WaitOptions = {}): Promise<void> {
-    await this.enqueue("click", async () => {
-      const { tree, node } = await this.resolveActionTarget(locator, options);
-      await this.driver.tap(this.tapTargetFor(node, tree));
+  /** Non-strict match count for presence checks; see Locator.exists(). */
+  async presenceCount(locator: Locator): Promise<number> {
+    return this.enqueue(
+      "inspect",
+      async () =>
+        locator.presenceMatches(
+          normalizeAxeTree(await this.driver.describeUi()),
+        ).length,
+    );
+  }
+
+  /**
+   * Which of these is on screen? Evaluates every candidate against ONE
+   * accessibility snapshot and returns the first present (in argument order),
+   * or undefined. Prefer this over consecutive exists() calls — each of those
+   * is a full tree fetch.
+   */
+  async firstPresent(
+    ...locators: readonly Locator[]
+  ): Promise<Locator | undefined> {
+    return this.enqueue("inspect", async () => {
+      const tree = normalizeAxeTree(await this.driver.describeUi());
+      return locators.find(
+        (locator) => locator.presenceMatches(tree).length > 0,
+      );
     });
   }
 
-  async typeInto(locator: Locator, text: string, options: WaitOptions = {}): Promise<void> {
+  /** @deprecated Use {@link tap} — iOS has taps, not clicks. Removed in 1.0. */
+  async click(locator: Locator, options: TapOptions = {}): Promise<void> {
+    await this.tap(locator, options);
+  }
+
+  async tap(locator: Locator, options: TapOptions = {}): Promise<void> {
+    const until = options.until;
+    if (until === undefined) {
+      await this.enqueue("tap", () => this.tapOnce(locator, options));
+      return;
+    }
+
+    // Tap-until-arrival: one successful tap is not proof of navigation (a
+    // control can render before its touch handler attaches, or an overlay can
+    // swallow the tap), so retap until the arrival locator is present.
+    const attempts = options.attempts ?? 3;
+    const settleTimeout = options.settleTimeout ?? this.timeouts.action;
+    const interval = options.interval ?? this.timeouts.interval;
+
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+      try {
+        await this.enqueue("tap", () => this.tapOnce(locator, options));
+      } catch (error) {
+        // The control may be gone precisely because an earlier tap landed.
+        if (await until.exists()) return;
+        throw error;
+      }
+
+      try {
+        await poll(() => until.exists(), {
+          timeout: settleTimeout,
+          interval,
+          clock: this.clock,
+        });
+        return;
+      } catch (error) {
+        if (!(error instanceof PollTimeoutError)) throw error;
+        // Arrival marker not up yet — the tap may have been swallowed; retap.
+      }
+    }
+
+    throw new LocatorTimeoutError(
+      `Tapped ${locator.describe()} ${attempts} times, but ${until.describe()} never appeared.`,
+    );
+  }
+
+  /** Coordinate tap through the device queue and command log. */
+  async tapPoint(x: number, y: number): Promise<void> {
+    await this.enqueue("tap-point", () =>
+      this.driver.tap({ kind: "point", x, y }),
+    );
+  }
+
+  /**
+   * Tap by exact accessibility label WITHOUT resolving the tree — the escape
+   * hatch for elements `describe-ui` never reports, native alert buttons
+   * above all, and a one-CLI-call fast path where the next wait in the flow
+   * verifies the outcome anyway. No actionability check happens. Returns
+   * whether the tap landed; failures only throw when `optional` is unset.
+   */
+  async tapLabel(
+    label: string,
+    options: TapLabelOptions = {},
+  ): Promise<boolean> {
+    const tapLabel = this.driver.tapLabel?.bind(this.driver);
+    if (!tapLabel) {
+      throw new Error("The configured AXe driver does not support label taps.");
+    }
+
+    return this.enqueue("tap-label", async () => {
+      try {
+        await tapLabel(label, options.waitTimeout);
+        return true;
+      } catch (error) {
+        if (options.optional) return false;
+        throw error;
+      }
+    });
+  }
+
+  async swipe(gesture: AxeSwipeGesture): Promise<void> {
+    const swipe = this.driver.swipe?.bind(this.driver);
+    if (!swipe) {
+      throw new Error("The configured AXe driver does not support swipes.");
+    }
+    await this.enqueue("swipe", () => swipe(gesture));
+  }
+
+  /**
+   * Runs an out-of-band operation inside the device's command queue and log,
+   * so work that bypasses the typed surface (biometric triggers, app
+   * lifecycle, raw driver calls) still serializes with queued commands and
+   * shows up in commandLog() with real timings.
+   */
+  async recordAction<T>(name: string, operation: () => Promise<T>): Promise<T> {
+    return this.enqueue(name, operation);
+  }
+
+  async typeInto(
+    locator: Locator,
+    text: string,
+    options: WaitOptions = {},
+  ): Promise<void> {
     await this.enqueue("type", async () => {
       const { tree, node } = await this.resolveActionTarget(locator, options);
       await this.driver.tap(this.tapTargetFor(node, tree));
@@ -119,7 +289,11 @@ export class Device {
     });
   }
 
-  async fill(locator: Locator, text: string, options: FillOptions = {}): Promise<void> {
+  async fill(
+    locator: Locator,
+    text: string,
+    options: FillOptions = {},
+  ): Promise<void> {
     await this.enqueue("fill", async () => {
       const { tree, node } = await this.resolveActionTarget(locator, options);
       await this.driver.tap(this.tapTargetFor(node, tree));
@@ -131,44 +305,73 @@ export class Device {
     if (options.verify ?? true) {
       await locator.waitFor((node) => node.value === text, {
         timeout: options.timeout ?? this.timeouts.action,
-        interval: options.interval
+        interval: options.interval,
       });
     }
   }
 
-  async setChecked(locator: Locator, expected: boolean, options: WaitOptions = {}): Promise<void> {
+  async setChecked(
+    locator: Locator,
+    expected: boolean,
+    options: WaitOptions = {},
+  ): Promise<void> {
     await this.enqueue(expected ? "check" : "uncheck", async () => {
       const { tree, node } = await this.resolveActionTarget(locator, options);
       const current = checkedState(node);
       if (current === undefined) {
         throw new Error(
-          `Cannot ${expected ? "check" : "uncheck"} ${locator.describe()}: AXe did not report a switch state.`
+          `Cannot ${expected ? "check" : "uncheck"} ${locator.describe()}: AXe did not report a switch state.`,
         );
       }
-      if (current !== expected) await this.driver.tap(this.tapTargetFor(node, tree));
+      if (current !== expected)
+        await this.driver.tap(this.tapTargetFor(node, tree));
     });
 
     await locator.waitFor((node) => checkedState(node) === expected, {
       timeout: options.timeout ?? this.timeouts.action,
-      interval: options.interval
+      interval: options.interval,
     });
   }
 
   async screenshot(output: string): Promise<string> {
     return this.enqueue("screenshot", async () => {
       if (!this.driver.screenshot) {
-        throw new Error("The configured AXe driver does not support screenshots.");
+        throw new Error(
+          "The configured AXe driver does not support screenshots.",
+        );
       }
       return this.driver.screenshot(output);
     });
   }
 
-  /** A copy of the structured command history for reporters and artifact sinks. */
-  commandLog(): readonly DeviceCommandLogEntry[] {
-    return this.log.map((entry) => ({ ...entry }));
+  /**
+   * A copy of the structured command history for reporters and artifact
+   * sinks. Pass `after` (a value from commandMark()) to window the log to the
+   * commands issued since — the primitive for per-step timing attribution.
+   */
+  commandLog(
+    options: { after?: number } = {},
+  ): readonly DeviceCommandLogEntry[] {
+    const after = options.after ?? 0;
+    return this.log
+      .filter((entry) => entry.sequence > after)
+      .map((entry) => ({ ...entry }));
   }
 
-  private tapTargetFor(node: AccessibilityNode, tree: ReturnType<typeof normalizeAxeTree>): AxeTapTarget {
+  /** The current log position, for commandLog({ after }) windowing. */
+  commandMark(): number {
+    return this.sequence;
+  }
+
+  private async tapOnce(locator: Locator, options: WaitOptions): Promise<void> {
+    const { tree, node } = await this.resolveActionTarget(locator, options);
+    await this.driver.tap(this.tapTargetFor(node, tree));
+  }
+
+  private tapTargetFor(
+    node: AccessibilityNode,
+    tree: ReturnType<typeof normalizeAxeTree>,
+  ): AxeTapTarget {
     if (node.id && countId(tree.root, node.id) === 1) {
       return { kind: "id", id: node.id };
     }
@@ -177,19 +380,22 @@ export class Device {
       return {
         kind: "point",
         x: node.frame.x + node.frame.width / 2,
-        y: node.frame.y + node.frame.height / 2
+        y: node.frame.y + node.frame.height / 2,
       };
     }
 
     throw new Error(
-      `Cannot tap ${node.role}: it has no unique accessibility id or frame.`
+      `Cannot tap ${node.role}: it has no unique accessibility id or frame.`,
     );
   }
 
   private async resolveActionTarget(
     locator: Locator,
-    options: WaitOptions
-  ): Promise<{ tree: ReturnType<typeof normalizeAxeTree>; node: AccessibilityNode }> {
+    options: WaitOptions,
+  ): Promise<{
+    tree: ReturnType<typeof normalizeAxeTree>;
+    node: AccessibilityNode;
+  }> {
     const timeout = options.timeout ?? this.timeouts.action;
     const interval = options.interval ?? this.timeouts.interval;
     const deadline = this.clock.now() + timeout;
@@ -201,12 +407,12 @@ export class Device {
         const node = locator.resolveFrom(tree);
         if (!node.visible) {
           throw new LocatorResolutionError(
-            `${locator.describe()} resolved to ${node.role}, but it is not visible.`
+            `${locator.describe()} resolved to ${node.role}, but it is not visible.`,
           );
         }
         if (node.enabled === false) {
           throw new LocatorResolutionError(
-            `${locator.describe()} resolved to ${node.role}, but it is disabled.`
+            `${locator.describe()} resolved to ${node.role}, but it is disabled.`,
           );
         }
         return { tree, node };
@@ -217,7 +423,7 @@ export class Device {
 
       if (this.clock.now() >= deadline) {
         throw new LocatorTimeoutError(
-          `${locator.describe()} was not actionable within ${timeout}ms. ${lastError?.message ?? ""}`.trim()
+          `${locator.describe()} was not actionable within ${timeout}ms. ${lastError?.message ?? ""}`.trim(),
         );
       }
 
@@ -226,8 +432,8 @@ export class Device {
   }
 
   private async enqueue<T>(
-    command: DeviceCommandLogEntry["command"],
-    operation: () => Promise<T>
+    command: DeviceCommandName,
+    operation: () => Promise<T>,
   ): Promise<T> {
     const previous = this.tail;
     let release: (() => void) | undefined;
@@ -245,7 +451,7 @@ export class Device {
         command,
         startedAt,
         finishedAt: this.clock.now(),
-        status: "passed"
+        status: "passed",
       });
       return result;
     } catch (error) {
@@ -255,7 +461,7 @@ export class Device {
         startedAt,
         finishedAt: this.clock.now(),
         status: "failed",
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
       throw error;
     } finally {
@@ -265,4 +471,5 @@ export class Device {
 }
 
 const countId = (node: AccessibilityNode, id: string): number =>
-  (node.id === id ? 1 : 0) + node.children.reduce((count, child) => count + countId(child, id), 0);
+  (node.id === id ? 1 : 0) +
+  node.children.reduce((count, child) => count + countId(child, id), 0);

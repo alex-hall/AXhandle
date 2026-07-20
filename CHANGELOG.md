@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### Changed
+
+- `click()` is renamed to `tap()` on `Device` and `Locator` — iOS has taps,
+  not clicks. `click()` and `ClickOptions` remain as deprecated aliases and
+  will be removed in 1.0. Command-log entries now record `tap` (locator
+  taps) and `tap-point` (coordinate taps) instead of `click`/`tap`.
+
+### Added
+
+- `Device.swipe()`, `Device.tapLabel()` (native alert buttons), `poll()`,
+  `SimulatorVideoRecorder`, `XcrunSimulatorController` (install/launch/
+  terminate, privacy grants, keychain reset), biometric controllers, and
+  device evidence capture.
+- The sample apps now exercise the full interaction surface (swipe lists,
+  native alerts, coordinate taps), with matching e2e suites plus a
+  simulator-control e2e suite.
+
 ## 0.1.1
 
 ### Added
