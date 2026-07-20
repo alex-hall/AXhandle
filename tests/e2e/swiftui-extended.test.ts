@@ -52,7 +52,7 @@ describe.skipIf(!enabled)("SwiftUI AXe e2e — extended surface", () => {
     const centerX = frame.x + frame.width / 2;
     for (
       let attempt = 0;
-      attempt < 12 && !(await deepRow.exists());
+      attempt < 12 && !(await deepRow.isPresent());
       attempt++
     ) {
       await device.swipe({

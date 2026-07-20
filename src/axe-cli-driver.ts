@@ -138,6 +138,18 @@ export class AxeCliDriver implements AxeDriver {
     ]);
   }
 
+  /**
+   * Touch down, hold, touch up — two `touch` invocations bracketing a real
+   * wall-clock hold. The hold is genuine elapsed time on the device, so it is
+   * deliberately not routed through any injectable test clock.
+   */
+  async longPress(x: number, y: number, holdMs = 1_500): Promise<void> {
+    const point = ["-x", String(x), "-y", String(y)];
+    await this.runner.run(["touch", ...point, "--down", "--udid", this.options.udid]);
+    await new Promise((resolve) => setTimeout(resolve, holdMs));
+    await this.runner.run(["touch", ...point, "--up", "--udid", this.options.udid]);
+  }
+
   async type(text: string): Promise<void> {
     await this.runner.run(["type", text, "--udid", this.options.udid]);
   }

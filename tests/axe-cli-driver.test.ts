@@ -84,6 +84,20 @@ describe("AxeCliDriver", () => {
     ]);
   });
 
+  it("long-presses as touch-down, wall-clock hold, touch-up", async () => {
+    const runner = new RecordingRunner();
+    const driver = new AxeCliDriver({ udid: "SIMULATOR-UDID", runner });
+
+    const startedAt = Date.now();
+    await driver.longPress(120, 340, 50);
+
+    expect(Date.now() - startedAt).toBeGreaterThanOrEqual(45);
+    expect(runner.calls).toEqual([
+      ["touch", "-x", "120", "-y", "340", "--down", "--udid", "SIMULATOR-UDID"],
+      ["touch", "-x", "120", "-y", "340", "--up", "--udid", "SIMULATOR-UDID"],
+    ]);
+  });
+
   it("keeps a missing AXe executable actionable", async () => {
     const binary = "/tmp/axhandle-missing-binary";
     const runner = new NodeAxeCommandRunner(binary);

@@ -128,3 +128,28 @@ describe("NotifyutilBiometricController", () => {
     ]);
   });
 });
+
+describe("simulator pasteboard", () => {
+  class PasteboardRunner implements SimulatorCommandRunner {
+    readonly calls: Array<{ args: string[]; input?: string }> = [];
+
+    async run(args: readonly string[], options: { input?: string } = {}) {
+      this.calls.push({ args: [...args], input: options.input });
+      return { stdout: "scheme://link/abc123\n", stderr: "" };
+    }
+  }
+
+  it("feeds pbcopy through stdin and reads pbpaste from stdout", async () => {
+    const runner = new PasteboardRunner();
+    const controller = new XcrunSimulatorController(runner);
+
+    await controller.setPasteboard("SIMULATOR", "scheme://link/abc123");
+    const pasted = await controller.getPasteboard("SIMULATOR");
+
+    expect(runner.calls).toEqual([
+      { args: ["pbcopy", "SIMULATOR"], input: "scheme://link/abc123" },
+      { args: ["pbpaste", "SIMULATOR"], input: undefined },
+    ]);
+    expect(pasted).toBe("scheme://link/abc123\n");
+  });
+});

@@ -46,6 +46,8 @@ export interface AxeDriver {
    */
   tapLabel?(label: string, waitTimeoutMs?: number): Promise<void>;
   swipe?(gesture: AxeSwipeGesture): Promise<void>;
+  /** Touch down, hold, touch up at one point — long-press affordances. */
+  longPress?(x: number, y: number, holdMs?: number): Promise<void>;
   type(text: string): Promise<void>;
   keyCombo(modifiers: readonly number[], key: number): Promise<void>;
   screenshot?(output: string): Promise<string>;
