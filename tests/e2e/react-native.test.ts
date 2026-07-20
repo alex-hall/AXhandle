@@ -14,7 +14,7 @@ const enabled =
   process.env.AXE_E2E === "1" && udid !== undefined && !hasPairConfiguration;
 const returnToMainScreen = async (device: Device): Promise<void> => {
   const back = device.findByRole("button", { name: "Back" });
-  if (await back.count() > 0) await back.click();
+  if (await back.count() > 0) await back.tap();
 };
 
 describe.skipIf(!enabled)("React Native AXe e2e", () => {
@@ -45,7 +45,7 @@ describe.skipIf(!enabled)("React Native AXe e2e", () => {
     // Readiness is expressed as a retried accessibility assertion, never a sleep.
     await expect(send).toBeVisible({ timeout: 10_000 });
 
-    await device.findByRole("button", { name: "Use Alice" }).click();
+    await device.findByRole("button", { name: "Use Alice" }).tap();
     await expect(device.findByLabel("Identity: Alice")).toBeVisible();
 
     // A whitespace-only value is a portable way to return this public sample to
@@ -57,10 +57,10 @@ describe.skipIf(!enabled)("React Native AXe e2e", () => {
     await expect(input).toHaveValue("Hello from AXe");
     await expect(send).toBeEnabled();
 
-    await send.click();
+    await send.tap();
     await expect(device.findByLabel("Delivery status: Delivered")).toBeVisible();
 
-    await device.findByRole("link", { name: "Details" }).click();
+    await device.findByRole("link", { name: "Details" }).tap();
     await expect(device.findByRole("button", { name: "Back" })).toBeVisible();
   }, 45_000);
 });
