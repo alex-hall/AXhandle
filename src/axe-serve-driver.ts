@@ -1,4 +1,6 @@
 import { spawn } from "node:child_process";
+import { createRequire } from "node:module";
+import path from "node:path";
 import {
   AxeCliDriver,
   AxeCommandError,
@@ -21,7 +23,13 @@ export interface AxeServeProcess {
 
 export interface AxeServeDriverOptions {
   udid: string;
-  /** An AXe binary built with `serve` support. Default: `axe`. */
+  /**
+   * An AXe binary built with `serve` support. Default: the prebuilt binary
+   * from the optional `axhandle-axe-darwin-arm64` platform package when
+   * installed, otherwise `axe` from PATH (the stock brew binary has no
+   * `serve` subcommand — install the platform package or point this at a
+   * serve-capable build).
+   */
   binary?: string;
   /**
    * Per-command response deadline. A command that gets no response line
@@ -43,6 +51,23 @@ export interface AxeServeDriverOptions {
 }
 
 const DEFAULT_TIMEOUT_MS = 30_000;
+
+/**
+ * The prebuilt serve-capable AXe from the optional platform package, when
+ * installed; `axe` from PATH otherwise. The package ships the binary with
+ * its frameworks alongside (rpath `@executable_path/Frameworks`), so the
+ * resolved path is directly runnable.
+ */
+const defaultServeBinary = (): string => {
+  try {
+    // ESM package — require only exists via createRequire.
+    const resolve = createRequire(import.meta.url).resolve;
+    const packageJson = resolve("axhandle-axe-darwin-arm64/package.json");
+    return path.join(path.dirname(packageJson), "bin", "axe");
+  } catch {
+    return "axe";
+  }
+};
 
 /**
  * An AxeDriver over one long-lived `axe serve` process instead of one CLI
@@ -72,7 +97,7 @@ export class AxeServeDriver implements AxeDriver {
   private ready: Promise<void> | undefined;
 
   constructor(private readonly options: AxeServeDriverOptions) {
-    this.binary = options.binary ?? "axe";
+    this.binary = options.binary ?? defaultServeBinary();
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.readyTimeoutMs = options.readyTimeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.fallback =

@@ -1,0 +1,11 @@
+framework module FBSimulatorControl {
+  umbrella header "FBSimulatorControl.h"
+  export *
+
+  module * { export * }
+}
+
+module FBSimulatorControl.Swift {
+  header "FBSimulatorControl-Swift.h"
+  requires objc
+}

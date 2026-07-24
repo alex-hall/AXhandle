@@ -47,7 +47,8 @@
     "CHANGELOG.md"
   ],
   "workspaces": [
-    "apps/*"
+    "apps/*",
+    "binaries/*"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

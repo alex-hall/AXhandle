@@ -1,0 +1,408 @@
+// swift-interface-format-version: 1.0
+// swift-compiler-version: Apple Swift version 6.2.4 effective-5.10 (swiftlang-6.2.4.1.4 clang-1700.6.4.2)
+// swift-module-flags: -target arm64-apple-macos12.0 -enable-objc-interop -enable-library-evolution -swift-version 5 -enforce-exclusivity=checked -O -enable-experimental-feature DebugDescriptionMacro -enable-bare-slash-regex -module-name FBDeviceControl
+// swift-module-flags-ignorable: -no-verify-emitted-module-interface -formal-cxx-interoperability-mode=off -interface-compiler-version 6.2.4
+import AVFoundation
+import CoreMedia
+import CoreMediaIO
+import CoreVideo
+import FBControlCore
+@_exported import FBDeviceControl
+import Foundation
+import Swift
+import XCTestBootstrap
+import _Concurrency
+import _StringProcessing
+import _SwiftConcurrencyShims
+@_hasMissingDesignatedInitializers @objc(FBAMDeviceServiceManager) public class FBAMDeviceServiceManager : ObjectiveC.NSObject {
+  #if compiler(>=5.3) && $NonescapableTypes
+  @objc(managerWithAMDevice:serviceTimeout:) public class func manager(withAMDevice device: FBDeviceControl.FBAMDevice, serviceTimeout: Foundation.NSNumber?) -> FBDeviceControl.FBAMDeviceServiceManager
+  #endif
+  @objc(houseArrestAFCConnectionForBundleID:afcCalls:) public func houseArrestAFCConnection(forBundleID bundleID: Swift.String, afcCalls: FBDeviceControl.AFCCalls) -> FBControlCore.FBFutureContextManager<FBDeviceControl.FBAFCConnection>
+  @objc deinit
+}
+@objc public class FBAppleDevicectlCommandExecutor : ObjectiveC.NSObject {
+  @objc public init(device: FBDeviceControl.FBDevice)
+  @objc public func taskBuilder(arguments: [Swift.String]) -> FBControlCore.FBProcessBuilder<Foundation.NSNull, Foundation.NSString, Foundation.NSString>
+  @objc deinit
+}
+extension FBDeviceControl.FBAppleDevicectlCommandExecutor {
+  @objc dynamic public func launchApplication(configuration: FBControlCore.FBApplicationLaunchConfiguration) -> FBControlCore.FBFuture<Foundation.NSNumber>
+  public func launchApplicationAsync(configuration: FBControlCore.FBApplicationLaunchConfiguration) async throws -> Foundation.NSNumber
+}
+extension FBDeviceControl.FBDevice : FBControlCore.AsyncXCTraceRecordCommands {
+  public func startXctraceRecord(configuration: FBControlCore.FBXCTraceRecordConfiguration, logger: any FBControlCore.FBControlCoreLogger) async throws -> FBControlCore.FBXCTraceRecordOperation
+}
+extension FBDeviceControl.FBDevice : FBControlCore.AsyncInstrumentsCommands {
+  public func startInstruments(configuration: FBControlCore.FBInstrumentsConfiguration, logger: any FBControlCore.FBControlCoreLogger) async throws -> FBControlCore.FBInstrumentsOperation
+}
+extension FBDeviceControl.FBDevice : FBControlCore.AsynciOSTarget {
+  public func compare(_ target: any FBControlCore.AsynciOSTarget) -> Foundation.ComparisonResult
+}
+@_hasMissingDesignatedInitializers @objc(FBDeviceActivationCommands) public class FBDeviceActivationCommands : ObjectiveC.NSObject, FBControlCore.FBiOSTargetCommand {
+  @objc public class func commands(with target: any FBControlCore.FBiOSTarget) -> Self
+  public func activate() -> FBControlCore.FBFuture<Foundation.NSNull>
+  @objc deinit
+}
+@objc public protocol FBDeviceActivationCommandsProtocol : ObjectiveC.NSObjectProtocol {
+  @objc func activate() -> FBControlCore.FBFuture<Foundation.NSNull>
+}
+extension FBDeviceControl.FBDevice : FBDeviceControl.FBDeviceActivationCommandsProtocol {
+  @objc dynamic public func activate() -> FBControlCore.FBFuture<Foundation.NSNull>
+}
+@_hasMissingDesignatedInitializers @objc(FBDeviceApplicationCommands) public class FBDeviceApplicationCommands : ObjectiveC.NSObject, FBControlCore.FBiOSTargetCommand {
+  @objc public class func commands(with target: any FBControlCore.FBiOSTarget) -> Self
+  @objc public func installApplication(withPath path: Swift.String) -> FBControlCore.FBFuture<FBControlCore.FBInstalledApplication>
+  @objc public func uninstallApplication(withBundleID bundleID: Swift.String) -> FBControlCore.FBFuture<Foundation.NSNull>
+  @objc public func installedApplications() -> FBControlCore.FBFuture<Foundation.NSArray>
+  @objc public func installedApplication(withBundleID bundleID: Swift.String) -> FBControlCore.FBFuture<FBControlCore.FBInstalledApplication>
+  @objc public func processID(withBundleID bundleID: Swift.String) -> FBControlCore.FBFuture<Foundation.NSNumber>
+  @objc public func killApplication(withBundleID bundleID: Swift.String) -> FBControlCore.FBFuture<Foundation.NSNull>
+  @objc public func launchApplication(_ configuration: FBControlCore.FBApplicationLaunchConfiguration) -> FBControlCore.FBFuture<any FBControlCore.FBLaunchedApplication>
+  @objc deinit
+}
+extension FBDeviceControl.FBDevice : FBControlCore.AsyncApplicationCommands {
+  public func installApplication(atPath path: Swift.String) async throws -> FBControlCore.FBInstalledApplication
+  public func uninstallApplication(bundleID: Swift.String) async throws
+  public func launchApplication(_ configuration: FBControlCore.FBApplicationLaunchConfiguration) async throws -> any FBControlCore.FBLaunchedApplication
+  public func killApplication(bundleID: Swift.String) async throws
+  public func installedApplications() async throws -> [FBControlCore.FBInstalledApplication]
+  public func installedApplication(bundleID: Swift.String) async throws -> FBControlCore.FBInstalledApplication
+  public func runningApplications() async throws -> [Swift.String : _DarwinFoundation2.pid_t]
+  public func processID(forBundleID bundleID: Swift.String) async throws -> _DarwinFoundation2.pid_t
+}
+extension FBDeviceControl.FBDevice : FBControlCore.FBApplicationCommands {
+  @objc(installApplicationWithPath:) dynamic public func installApplication(withPath path: Swift.String) -> FBControlCore.FBFuture<FBControlCore.FBInstalledApplication>
+  @objc(uninstallApplicationWithBundleID:) dynamic public func uninstallApplication(withBundleID bundleID: Swift.String) -> FBControlCore.FBFuture<Foundation.NSNull>
+  @objc(launchApplication:) dynamic public func launchApplication(_ configuration: FBControlCore.FBApplicationLaunchConfiguration) -> FBControlCore.FBFuture<any FBControlCore.FBLaunchedApplication>
+  @objc(killApplicationWithBundleID:) dynamic public func killApplication(withBundleID bundleID: Swift.String) -> FBControlCore.FBFuture<Foundation.NSNull>
+  @objc dynamic public func installedApplications() -> FBControlCore.FBFuture<Foundation.NSArray>
+  @objc(installedApplicationWithBundleID:) dynamic public func installedApplication(withBundleID bundleID: Swift.String) -> FBControlCore.FBFuture<FBControlCore.FBInstalledApplication>
+  @objc(processIDWithBundleID:) dynamic public func processID(withBundleID bundleID: Swift.String) -> FBControlCore.FBFuture<Foundation.NSNumber>
+}
+public let FBDeviceControlErrorDomain: Swift.String
+@_inheritsConvenienceInitializers @objc(FBDeviceControlError) open class FBDeviceControlError : FBControlCore.FBControlCoreError {
+  @objc required dynamic public init()
+  @objc deinit
+}
+@_hasMissingDesignatedInitializers @objc(FBDeviceCrashLogCommands) public class FBDeviceCrashLogCommands : ObjectiveC.NSObject, FBControlCore.FBiOSTargetCommand {
+  @objc public class func commands(with target: any FBControlCore.FBiOSTarget) -> Self
+  @objc(notifyOfCrash:) public func notifyOfCrash(_ predicate: Foundation.NSPredicate) -> FBControlCore.FBFuture<FBControlCore.FBCrashLogInfo>
+  @objc deinit
+}
+extension FBDeviceControl.FBDevice : FBControlCore.AsyncCrashLogCommands {
+  public func crashes(matching predicate: Foundation.NSPredicate, useCache: Swift.Bool) async throws -> [FBControlCore.FBCrashLogInfo]
+  public func notifyOfCrash(matching predicate: Foundation.NSPredicate) async throws -> FBControlCore.FBCrashLogInfo
+  public func pruneCrashes(matching predicate: Foundation.NSPredicate) async throws -> [FBControlCore.FBCrashLogInfo]
+  public func withCrashLogFiles<R>(body: (any FBControlCore.AsyncFileContainer) async throws -> R) async throws -> R
+}
+extension FBDeviceControl.FBDevice : FBControlCore.FBCrashLogCommands {
+  @objc(notifyOfCrash:) dynamic public func notifyOfCrash(_ predicate: Foundation.NSPredicate) -> FBControlCore.FBFuture<FBControlCore.FBCrashLogInfo>
+}
+@_hasMissingDesignatedInitializers @objc(FBDeviceDebugServer) public class FBDeviceDebugServer : ObjectiveC.NSObject, FBControlCore.FBSocketServerDelegate, FBControlCore.FBDebugServer {
+  @objc final public let lldbBootstrapCommands: [Swift.String]
+  @objc final public let queue: Dispatch.DispatchQueue
+  @objc public static func debugServer(forServiceConnection service: FBControlCore.FBFutureContext<FBDeviceControl.FBAMDServiceConnection>, port: _DarwinFoundation2.in_port_t, lldbBootstrapCommands: [Swift.String], queue: Dispatch.DispatchQueue, logger: any FBControlCore.FBControlCoreLogger) -> FBControlCore.FBFuture<Swift.AnyObject>
+  @objc public func socketServer(_ server: FBControlCore.FBSocketServer, clientConnected address: Darwin.in6_addr, fileDescriptor: Swift.Int32)
+  @objc public var completed: FBControlCore.FBFuture<Foundation.NSNull> {
+    @objc get
+  }
+  @objc deinit
+}
+@objc public protocol FBDeviceDebugSymbolsCommandsProtocol : ObjectiveC.NSObjectProtocol {
+  @objc func listSymbols() -> FBControlCore.FBFuture<Foundation.NSArray>
+  @objc(pullSymbolFile:toDestinationPath:) func pullSymbolFile(_ fileName: Swift.String, toDestinationPath destinationPath: Swift.String) -> FBControlCore.FBFuture<Foundation.NSString>
+  @objc(pullAndExtractSymbolsToDestinationDirectory:) func pullAndExtractSymbols(toDestinationDirectory destinationDirectory: Swift.String) -> FBControlCore.FBFuture<Foundation.NSString>
+}
+extension FBDeviceControl.FBDevice : FBDeviceControl.FBDeviceDebugSymbolsCommandsProtocol {
+  @objc dynamic public func listSymbols() -> FBControlCore.FBFuture<Foundation.NSArray>
+  @objc dynamic public func pullSymbolFile(_ fileName: Swift.String, toDestinationPath destinationPath: Swift.String) -> FBControlCore.FBFuture<Foundation.NSString>
+  @objc dynamic public func pullAndExtractSymbols(toDestinationDirectory destinationDirectory: Swift.String) -> FBControlCore.FBFuture<Foundation.NSString>
+}
+@_hasMissingDesignatedInitializers @objc(FBDeviceDebuggerCommands) public class FBDeviceDebuggerCommands : ObjectiveC.NSObject, FBControlCore.FBiOSTargetCommand {
+  @objc public class func commands(with target: any FBControlCore.FBiOSTarget) -> Self
+  public func connectToDebugServer() -> FBControlCore.FBFutureContext<FBDeviceControl.FBAMDServiceConnection>
+  @objc deinit
+}
+extension FBDeviceControl.FBDevice : FBControlCore.AsyncDebuggerCommands {
+  public func launchDebugServer(forHostApplication application: FBControlCore.FBBundleDescriptor, port: _DarwinFoundation2.in_port_t) async throws -> any FBControlCore.FBDebugServer
+}
+@_hasMissingDesignatedInitializers @objc(FBDeviceDeveloperDiskImageCommands) public class FBDeviceDeveloperDiskImageCommands : ObjectiveC.NSObject, FBControlCore.FBiOSTargetCommand, FBControlCore.AsyncDeveloperDiskImageCommands {
+  @objc public class func commands(with target: any FBControlCore.FBiOSTarget) -> Self
+  public func mountedDiskImages() async throws -> [FBControlCore.FBDeveloperDiskImage]
+  public func mountDiskImage(_ diskImage: FBControlCore.FBDeveloperDiskImage) async throws -> FBControlCore.FBDeveloperDiskImage
+  public func unmountDiskImage(_ diskImage: FBControlCore.FBDeveloperDiskImage) async throws
+  public func mountableDiskImages() -> [FBControlCore.FBDeveloperDiskImage]
+  public func ensureDeveloperDiskImageIsMounted() async throws -> FBControlCore.FBDeveloperDiskImage
+  @objc deinit
+}
+extension FBDeviceControl.FBDevice : FBControlCore.AsyncDeveloperDiskImageCommands {
+  public func mountedDiskImages() async throws -> [FBControlCore.FBDeveloperDiskImage]
+  public func mountDiskImage(_ diskImage: FBControlCore.FBDeveloperDiskImage) async throws -> FBControlCore.FBDeveloperDiskImage
+  public func unmountDiskImage(_ diskImage: FBControlCore.FBDeveloperDiskImage) async throws
+  public func mountableDiskImages() -> [FBControlCore.FBDeveloperDiskImage]
+  public func ensureDeveloperDiskImageIsMounted() async throws -> FBControlCore.FBDeveloperDiskImage
+  @objc dynamic public func ensureDeveloperDiskImageIsMounted() -> FBControlCore.FBFuture<FBControlCore.FBDeveloperDiskImage>
+}
+@_hasMissingDesignatedInitializers @objc(FBDeviceDiagnosticInformationCommands) public class FBDeviceDiagnosticInformationCommands : ObjectiveC.NSObject, FBControlCore.FBiOSTargetCommand {
+  @objc public class func commands(with target: any FBControlCore.FBiOSTarget) -> Self
+  @objc deinit
+}
+extension FBDeviceControl.FBDevice : FBControlCore.AsyncDiagnosticInformationCommands {
+  public func fetchDiagnosticInformation() async throws -> [Swift.String : Any]
+}
+@_hasMissingDesignatedInitializers @objc(FBDeviceEraseCommands) final public class FBDeviceEraseCommands : ObjectiveC.NSObject, FBControlCore.FBiOSTargetCommand, FBControlCore.AsyncEraseCommands {
+  @objc final public class func commands(with target: any FBControlCore.FBiOSTarget) -> Self
+  final public func erase() async throws
+  @objc deinit
+}
+extension FBDeviceControl.FBDevice : FBControlCore.AsyncEraseCommands {
+  public func erase() async throws
+}
+@objc(FBDeviceFileContainer) public class FBDeviceFileContainer : ObjectiveC.NSObject, FBControlCore.AsyncFileContainer {
+  @objc public init(afcConnection connection: FBDeviceControl.FBAFCConnection, queue: Dispatch.DispatchQueue)
+  public func copy(fromHost sourcePath: Swift.String, toContainer destinationPath: Swift.String) async throws
+  public func copy(fromContainer sourcePath: Swift.String, toHost destinationPath: Swift.String) async throws -> Swift.String
+  public func tail(_ path: Swift.String, to consumer: any FBControlCore.FBDataConsumer) async throws -> any FBControlCore.FBiOSTargetOperation
+  public func createDirectory(_ directoryPath: Swift.String) async throws
+  public func move(from sourcePath: Swift.String, to destinationPath: Swift.String) async throws
+  public func remove(_ path: Swift.String) async throws
+  public func contents(ofDirectory path: Swift.String) async throws -> [Swift.String]
+  @objc deinit
+}
+@_hasMissingDesignatedInitializers @objc(FBDeviceFileCommands) public class FBDeviceFileCommands : ObjectiveC.NSObject, FBControlCore.FBiOSTargetCommand {
+  @objc public class func commands(with target: any FBControlCore.FBiOSTarget) -> Self
+  @objc public class func commands(with target: any FBControlCore.FBiOSTarget, afcCalls: FBDeviceControl.AFCCalls) -> Self
+  @objc deinit
+}
+extension FBDeviceControl.FBDevice : FBControlCore.AsyncFileCommands {
+  public func withFileCommandsForContainerApplication<R>(_ bundleID: Swift.String, body: (any FBControlCore.AsyncFileContainer) async throws -> R) async throws -> R
+  public func withFileCommandsForAuxillary<R>(body: (any FBControlCore.AsyncFileContainer) async throws -> R) async throws -> R
+  public func withFileCommandsForApplicationContainers<R>(body: (any FBControlCore.AsyncFileContainer) async throws -> R) async throws -> R
+  public func withFileCommandsForGroupContainers<R>(body: (any FBControlCore.AsyncFileContainer) async throws -> R) async throws -> R
+  public func withFileCommandsForRootFilesystem<R>(body: (any FBControlCore.AsyncFileContainer) async throws -> R) async throws -> R
+  public func withFileCommandsForMediaDirectory<R>(body: (any FBControlCore.AsyncFileContainer) async throws -> R) async throws -> R
+  public func withFileCommandsForProvisioningProfiles<R>(body: (any FBControlCore.AsyncFileContainer) async throws -> R) async throws -> R
+  public func withFileCommandsForMDMProfiles<R>(body: (any FBControlCore.AsyncFileContainer) async throws -> R) async throws -> R
+  public func withFileCommandsForSpringboardIconLayout<R>(body: (any FBControlCore.AsyncFileContainer) async throws -> R) async throws -> R
+  public func withFileCommandsForWallpaper<R>(body: (any FBControlCore.AsyncFileContainer) async throws -> R) async throws -> R
+  public func withFileCommandsForDiskImages<R>(body: (any FBControlCore.AsyncFileContainer) async throws -> R) async throws -> R
+  public func withFileCommandsForSymbols<R>(body: (any FBControlCore.AsyncFileContainer) async throws -> R) async throws -> R
+}
+@_hasMissingDesignatedInitializers @objc(FBDeviceLifecycleCommands) public class FBDeviceLifecycleCommands : ObjectiveC.NSObject, FBControlCore.FBiOSTargetCommand {
+  @objc public class func commands(with target: any FBControlCore.FBiOSTarget) -> Self
+  @objc deinit
+}
+extension FBDeviceControl.FBDevice : FBControlCore.AsyncLifecycleCommands {
+  public func resolveState(_ state: FBControlCore.FBiOSTargetState) async throws
+  public func resolveLeavesState(_ state: FBControlCore.FBiOSTargetState) async throws
+}
+@_hasMissingDesignatedInitializers @objc(FBDeviceLinkClient) public class FBDeviceLinkClient : ObjectiveC.NSObject {
+  @objc public static func deviceLinkClient(connection: FBDeviceControl.FBAMDServiceConnection) -> FBControlCore.FBFuture<FBDeviceControl.FBDeviceLinkClient>
+  public static func deviceLinkClientAsync(connection: FBDeviceControl.FBAMDServiceConnection) async throws -> FBDeviceControl.FBDeviceLinkClient
+  public func processMessage(_ message: Any) -> FBControlCore.FBFuture<Foundation.NSDictionary>
+  public func processMessageAsync(_ message: Any) async throws -> Foundation.NSDictionary
+  @objc deinit
+}
+@_hasMissingDesignatedInitializers @objc(FBDeviceLocationCommands) public class FBDeviceLocationCommands : ObjectiveC.NSObject, FBControlCore.FBiOSTargetCommand {
+  @objc public class func commands(with target: any FBControlCore.FBiOSTarget) -> Self
+  @objc deinit
+}
+extension FBDeviceControl.FBDevice : FBControlCore.AsyncLocationCommands {
+  public func overrideLocation(longitude: Swift.Double, latitude: Swift.Double) async throws
+}
+@_hasMissingDesignatedInitializers @objc(FBDeviceLogOperation) public class FBDeviceLogOperation : ObjectiveC.NSObject, FBControlCore.AsyncLogOperation {
+  final public let consumer: any FBControlCore.FBDataConsumer
+  public var completed: FBControlCore.FBFuture<Foundation.NSNull> {
+    get
+  }
+  public func waitUntilCompleted() async throws
+  @objc deinit
+}
+@_hasMissingDesignatedInitializers @objc(FBDeviceLogCommands) public class FBDeviceLogCommands : ObjectiveC.NSObject, FBControlCore.FBiOSTargetCommand {
+  @objc public class func commands(with target: any FBControlCore.FBiOSTarget) -> Self
+  public func tailLog(_ arguments: [Swift.String], consumer: any FBControlCore.FBDataConsumer) -> FBControlCore.FBFuture<FBDeviceControl.FBDeviceLogOperation>
+  @objc deinit
+}
+extension FBDeviceControl.FBDevice : FBControlCore.AsyncLogCommands {
+  public func tailLog(arguments: [Swift.String], consumer: any FBControlCore.FBDataConsumer) async throws -> any FBControlCore.AsyncLogOperation
+}
+@_hasMissingDesignatedInitializers @objc(FBDevicePowerCommands) public class FBDevicePowerCommands : ObjectiveC.NSObject, FBControlCore.FBiOSTargetCommand {
+  @objc public class func commands(with target: any FBControlCore.FBiOSTarget) -> Self
+  @objc deinit
+}
+extension FBDeviceControl.FBDevice : FBControlCore.AsyncPowerCommands {
+  public func shutdown() async throws
+  public func reboot() async throws
+}
+@objc(FBDeviceProvisioningProfileCommands) public class FBDeviceProvisioningProfileCommands : ObjectiveC.NSObject, FBControlCore.FBiOSTargetCommand, FBControlCore.AsyncProvisioningProfileCommands {
+  @objc public class func commands(with target: any FBControlCore.FBiOSTarget) -> Self
+  public init(device: FBDeviceControl.FBDevice)
+  public func allProvisioningProfiles() async throws -> [[Swift.String : Any]]
+  public func removeProvisioningProfile(uuid: Swift.String) async throws -> [Swift.String : Any]
+  public func installProvisioningProfile(_ profileData: Foundation.Data) async throws -> [Swift.String : Any]
+  @objc deinit
+}
+@_hasMissingDesignatedInitializers @objc(FBDeviceRecoveryCommands) public class FBDeviceRecoveryCommands : ObjectiveC.NSObject, FBControlCore.FBiOSTargetCommand {
+  @objc public class func commands(with target: any FBControlCore.FBiOSTarget) -> Self
+  @objc public func enterRecovery() -> FBControlCore.FBFuture<Foundation.NSNull>
+  @objc public func exitRecovery() -> FBControlCore.FBFuture<Foundation.NSNull>
+  @objc deinit
+}
+@objc public protocol FBDeviceRecoveryCommandsProtocol : ObjectiveC.NSObjectProtocol {
+  @objc func enterRecovery() -> FBControlCore.FBFuture<Foundation.NSNull>
+  @objc func exitRecovery() -> FBControlCore.FBFuture<Foundation.NSNull>
+}
+extension FBDeviceControl.FBDevice : FBDeviceControl.FBDeviceRecoveryCommandsProtocol {
+  @objc dynamic public func enterRecovery() -> FBControlCore.FBFuture<Foundation.NSNull>
+  @objc dynamic public func exitRecovery() -> FBControlCore.FBFuture<Foundation.NSNull>
+}
+@_hasMissingDesignatedInitializers @objc(FBDeviceScreenshotCommands) public class FBDeviceScreenshotCommands : ObjectiveC.NSObject, FBControlCore.FBiOSTargetCommand {
+  @objc public class func commands(with target: any FBControlCore.FBiOSTarget) -> Self
+  @objc deinit
+}
+extension FBDeviceControl.FBDevice : FBControlCore.AsyncScreenshotCommands {
+  public func takeScreenshot(format: FBControlCore.FBScreenshotFormat) async throws -> Foundation.Data
+}
+@_hasMissingDesignatedInitializers @objc(FBDeviceSet) public class FBDeviceSet : ObjectiveC.NSObject, FBControlCore.FBiOSTargetSet, FBControlCore.FBiOSTargetSetDelegate {
+  @objc final public let logger: any FBControlCore.FBControlCoreLogger
+  @objc weak public var delegate: (any FBControlCore.FBiOSTargetSetDelegate)?
+  #if compiler(>=5.3) && $NonescapableTypes
+  @objc(setWithLogger:delegate:ecidFilter:error:) convenience public init(logger: any FBControlCore.FBControlCoreLogger, delegate: (any FBControlCore.FBiOSTargetSetDelegate)?, ecidFilter: Swift.String?) throws
+  #endif
+  @objc deinit
+  @objc override dynamic public var description: Swift.String {
+    @objc get
+  }
+  #if compiler(>=5.3) && $NonescapableTypes
+  @objc(targetWithUDID:) public func target(withUDID udid: Swift.String) -> (any FBControlCore.FBiOSTargetInfo)?
+  #endif
+  #if compiler(>=5.3) && $NonescapableTypes
+  @objc public func deviceWithUDID(_ udid: Swift.String) -> FBDeviceControl.FBDevice?
+  #endif
+  @objc public var allTargetInfos: [any FBControlCore.FBiOSTargetInfo] {
+    @objc get
+  }
+  @objc public var allDevices: [FBDeviceControl.FBDevice] {
+    @objc get
+  }
+  @objc public func targetAdded(_ targetInfo: any FBControlCore.FBiOSTargetInfo, in targetSet: any FBControlCore.FBiOSTargetSet)
+  @objc public func targetRemoved(_ targetInfo: any FBControlCore.FBiOSTargetInfo, in targetSet: any FBControlCore.FBiOSTargetSet)
+  @objc public func targetUpdated(_ targetInfo: any FBControlCore.FBiOSTargetInfo, in targetSet: any FBControlCore.FBiOSTargetSet)
+}
+@_hasMissingDesignatedInitializers @objc(FBDeviceSocketForwardingCommands) public class FBDeviceSocketForwardingCommands : ObjectiveC.NSObject, FBControlCore.FBiOSTargetCommand {
+  @objc public class func commands(with target: any FBControlCore.FBiOSTarget) -> Self
+  public func drainLocalFileInput(_ localFileDescriptorInput: Swift.Int32, localFileOutput localFileDescriptorOutput: Swift.Int32, remotePort: Swift.Int32) -> FBControlCore.FBFuture<Foundation.NSNull>
+  @objc deinit
+}
+@objc(FBDeviceStorage) public class _FBDeviceStorageBase : ObjectiveC.NSObject {
+  @objc public var attached: [Swift.String : Any] {
+    @objc get
+  }
+  @objc public var referenced: [Swift.String : Any] {
+    @objc get
+  }
+  @objc public init(logger: any FBControlCore.FBControlCoreLogger)
+  @objc public func deviceAttached(_ device: Any, forKey key: Swift.String)
+  @objc public func deviceDetached(forKey key: Swift.String)
+  #if compiler(>=5.3) && $NonescapableTypes
+  @objc public func device(forKey key: Swift.String) -> Any?
+  #endif
+  @objc deinit
+}
+@_inheritsConvenienceInitializers public class FBDeviceStorage<T> : FBDeviceControl._FBDeviceStorageBase where T : AnyObject {
+  @objc override public init(logger: any FBControlCore.FBControlCoreLogger)
+  @objc deinit
+}
+@_hasMissingDesignatedInitializers @objc(FBDeviceVideo) public class FBDeviceVideo : ObjectiveC.NSObject, FBControlCore.FBiOSTargetOperation {
+  @objc(captureSessionForDevice:) public class func captureSession(for device: FBDeviceControl.FBDevice) -> FBControlCore.FBFuture<AVFoundation.AVCaptureSession>
+  public class func captureSessionAsync(for device: FBDeviceControl.FBDevice) async throws -> AVFoundation.AVCaptureSession
+  @objc(videoForDevice:filePath:) public class func video(for device: FBDeviceControl.FBDevice, filePath: Swift.String) -> FBControlCore.FBFuture<FBDeviceControl.FBDeviceVideo>
+  public class func videoAsync(for device: FBDeviceControl.FBDevice, filePath: Swift.String) async throws -> FBDeviceControl.FBDeviceVideo
+  @objc public func startRecording() -> FBControlCore.FBFuture<Foundation.NSNull>
+  @objc public func stopRecording() -> FBControlCore.FBFuture<Foundation.NSNull>
+  @objc public var completed: FBControlCore.FBFuture<Foundation.NSNull> {
+    @objc get
+  }
+  @objc deinit
+}
+@_hasMissingDesignatedInitializers @objc(FBDeviceVideoRecordingCommands) public class FBDeviceVideoRecordingCommands : ObjectiveC.NSObject, FBControlCore.FBiOSTargetCommand {
+  @objc public class func commands(with target: any FBControlCore.FBiOSTarget) -> Self
+  @objc deinit
+}
+extension FBDeviceControl.FBDevice : FBControlCore.AsyncVideoRecordingCommands {
+  public func startRecording(toFile filePath: Swift.String) async throws -> any FBControlCore.FBiOSTargetOperation
+  public func stopRecording() async throws
+}
+extension FBDeviceControl.FBDevice : FBControlCore.AsyncVideoStreamCommands {
+  public func createStream(configuration: FBControlCore.FBVideoStreamConfiguration) async throws -> any FBControlCore.FBVideoStream
+}
+@_hasMissingDesignatedInitializers @objc(FBDeviceVideoStream) public class FBDeviceVideoStream : ObjectiveC.NSObject, FBControlCore.FBVideoStream {
+  @objc(streamWithSession:configuration:logger:error:) public class func stream(withSession session: AVFoundation.AVCaptureSession, configuration: FBControlCore.FBVideoStreamConfiguration, logger: any FBControlCore.FBControlCoreLogger) throws -> FBDeviceControl.FBDeviceVideoStream
+  @objc public func startStreaming(_ consumer: any FBControlCore.FBDataConsumer) -> FBControlCore.FBFuture<Foundation.NSNull>
+  @objc public func stopStreaming() -> FBControlCore.FBFuture<Foundation.NSNull>
+  @objc public var completed: FBControlCore.FBFuture<Foundation.NSNull> {
+    @objc get
+  }
+  @objc deinit
+}
+extension FBDeviceControl.FBDeviceVideoStream : AVFoundation.AVCaptureVideoDataOutputSampleBufferDelegate {
+  @objc dynamic public func captureOutput(_ output: AVFoundation.AVCaptureOutput, didOutput sampleBuffer: CoreMedia.CMSampleBuffer, from connection: AVFoundation.AVCaptureConnection)
+  @objc dynamic public func captureOutput(_ output: AVFoundation.AVCaptureOutput, didDrop sampleBuffer: CoreMedia.CMSampleBuffer, from connection: AVFoundation.AVCaptureConnection)
+}
+@_hasMissingDesignatedInitializers @objc(FBDeviceXCTestCommands) public class FBDeviceXCTestCommands : ObjectiveC.NSObject, FBControlCore.FBiOSTargetCommand {
+  @objc public class func commands(with target: any FBControlCore.FBiOSTarget) -> Self
+  @objc(runTestWithLaunchConfiguration:reporter:logger:) public func runTest(withLaunchConfiguration testLaunchConfiguration: FBControlCore.FBTestLaunchConfiguration, reporter: Swift.AnyObject, logger: any FBControlCore.FBControlCoreLogger) -> FBControlCore.FBFuture<Foundation.NSNull>
+  @objc deinit
+}
+extension FBDeviceControl.FBDevice : FBControlCore.AsyncXCTestCommands {
+  public func runTest(launchConfiguration: FBControlCore.FBTestLaunchConfiguration, reporter: Swift.AnyObject, logger: any FBControlCore.FBControlCoreLogger) async throws
+}
+public let FBManagedConfigService: Swift.String
+@_hasMissingDesignatedInitializers @objc(FBManagedConfigClient) public class FBManagedConfigClient : ObjectiveC.NSObject {
+  @objc public static let serviceName: Swift.String
+  @objc public static func managedConfigClient(connection: FBDeviceControl.FBAMDServiceConnection, logger: any FBControlCore.FBControlCoreLogger) -> FBDeviceControl.FBManagedConfigClient
+  @objc public func getCloudConfiguration() -> FBControlCore.FBFuture<Foundation.NSDictionary>
+  @objc public func changeWallpaper(withName name: Swift.String, data: Foundation.Data) -> FBControlCore.FBFuture<Foundation.NSNull>
+  @objc public func getProfileList() -> FBControlCore.FBFuture<Foundation.NSArray>
+  @objc public func installProfile(_ payload: Foundation.Data) -> FBControlCore.FBFuture<Foundation.NSDictionary>
+  @objc public func removeProfile(_ profileName: Swift.String) -> FBControlCore.FBFuture<Foundation.NSNull>
+  public func getCloudConfigurationAsync() async throws -> [Swift.String : Any]
+  public func changeWallpaperAsync(name: Swift.String, data: Foundation.Data) async throws
+  public func getProfileListAsync() async throws -> [Any]
+  public func installProfileAsync(_ payload: Foundation.Data) async throws -> [Swift.String : Any]
+  public func removeProfileAsync(_ profileName: Swift.String) async throws
+  @objc deinit
+}
+@objc public protocol FBSocketForwardingCommands : ObjectiveC.NSObjectProtocol {
+  @objc(drainLocalFileInput:localFileOutput:remotePort:) func drainLocalFileInput(_ localFileDescriptorInput: Swift.Int32, localFileOutput localFileDescriptorOutput: Swift.Int32, remotePort: Swift.Int32) -> FBControlCore.FBFuture<Foundation.NSNull>
+}
+public struct FBWallpaperName : Swift.RawRepresentable, Swift.Equatable, Swift.Hashable, Swift.Sendable {
+  public let rawValue: Swift.String
+  public init(rawValue: Swift.String)
+  public typealias RawValue = Swift.String
+}
+extension FBDeviceControl.FBWallpaperName {
+  public static let homescreen: FBDeviceControl.FBWallpaperName
+  public static let lockscreen: FBDeviceControl.FBWallpaperName
+}
+public let FBSpringboardServiceName: Swift.String
+@_hasMissingDesignatedInitializers @objc(FBSpringboardServicesClient) public class FBSpringboardServicesClient : ObjectiveC.NSObject {
+  @objc public static let wallpaperNameHomescreen: Swift.String
+  @objc public static let wallpaperNameLockscreen: Swift.String
+  @objc public static let serviceName: Swift.String
+  @objc public static func springboardServicesClient(connection: FBDeviceControl.FBAMDServiceConnection, logger: any FBControlCore.FBControlCoreLogger) -> FBDeviceControl.FBSpringboardServicesClient
+  @objc convenience public init(connection: FBDeviceControl.FBAMDServiceConnection, logger: any FBControlCore.FBControlCoreLogger)
+  public func getIconLayout() -> FBControlCore.FBFuture<Foundation.NSArray>
+  public func getRawIconState(formatVersion: Swift.UInt) -> FBControlCore.FBFuture<Swift.AnyObject>
+  public func setIconLayout(_ iconLayout: Foundation.NSArray) -> FBControlCore.FBFuture<Foundation.NSNull>
+  public func getHomeScreenIconMetrics() -> FBControlCore.FBFuture<Foundation.NSDictionary>
+  @objc public func wallpaperImageData(forKind name: Swift.String) -> FBControlCore.FBFuture<Foundation.NSData>
+  public func iconContainer() -> any FBControlCore.AsyncFileContainer
+  public func getIconLayoutAsync() async throws -> [Any]
+  public func getRawIconStateAsync(formatVersion: Swift.UInt) async throws -> Swift.AnyObject
+  public func setIconLayoutAsync(_ iconLayout: Foundation.NSArray) async throws
+  public func getHomeScreenIconMetricsAsync() async throws -> [Swift.String : Any]
+  public func wallpaperImageDataAsync(forKind name: Swift.String) async throws -> Foundation.Data
+  @objc deinit
+}
