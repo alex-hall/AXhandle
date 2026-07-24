@@ -4,6 +4,11 @@ on:
   push:
     tags:
       - "v*"
+  # Invoked on a tag ref by tag-release.yml (a tag pushed with GITHUB_TOKEN
+  # does not fire the push trigger above). The version-check step below still
+  # guards this path: dispatched on a non-tag ref, GITHUB_REF_NAME is a
+  # branch name and never matches the package version.
+  workflow_dispatch:
 
 permissions:
   contents: read
