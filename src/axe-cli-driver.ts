@@ -49,27 +49,95 @@ const redactTypedText = (value: string, typedText: string | undefined): string =
   return value.replaceAll(typedText, "<redacted>");
 };
 
+/**
+ * A hung AXe process was killed at its hard deadline. Distinct from
+ * AxeCommandError so retry layers can tell "wedged CLI — retrying is
+ * right" from "element genuinely absent": an axe invocation has been
+ * observed sitting for hundreds of seconds against a busily re-rendering
+ * screen, far past any wait it was asked to perform.
+ */
+export class AxeCommandTimeoutError extends AxeCommandError {
+  readonly timeoutMs: number;
+
+  constructor(
+    args: readonly string[],
+    timeoutMs: number,
+    cause?: unknown,
+    executable = "axe"
+  ) {
+    super(
+      args,
+      `killed after exceeding the ${timeoutMs}ms hard deadline (hung CLI process)`,
+      cause,
+      executable
+    );
+    this.name = "AxeCommandTimeoutError";
+    this.timeoutMs = timeoutMs;
+  }
+}
+
+export interface NodeAxeCommandRunnerOptions {
+  /**
+   * Hard per-invocation deadline. The child process is KILLED (SIGKILL)
+   * when it elapses — a wedged process would otherwise hold the
+   * simulator's accessibility connection and freeze every wait built on
+   * top of it. Calls that legitimately wait (`tap --wait-timeout N`)
+   * automatically extend the deadline to N plus a margin, so this cap
+   * never races a healthy call. Default: 60s.
+   */
+  timeoutMs?: number;
+}
+
+const DEFAULT_COMMAND_TIMEOUT_MS = 60_000;
+/** Headroom past an explicit --wait-timeout before the kill fires. */
+const WAIT_TIMEOUT_MARGIN_MS = 15_000;
+
 /** A shell-free Node runner. Arguments are never interpolated into a shell. */
 export class NodeAxeCommandRunner implements AxeCommandRunner {
   private readonly execute = promisify(execFile);
+  private readonly timeoutMs: number;
 
-  constructor(private readonly binary = "axe") {}
+  constructor(
+    private readonly binary = "axe",
+    options: NodeAxeCommandRunnerOptions = {}
+  ) {
+    this.timeoutMs = options.timeoutMs ?? DEFAULT_COMMAND_TIMEOUT_MS;
+  }
 
   async run(args: readonly string[]): Promise<AxeCommandResult> {
+    const timeout = deadlineFor(args, this.timeoutMs);
     try {
       const result = await this.execute(this.binary, [...args], {
         encoding: "utf8",
-        maxBuffer: 10 * 1024 * 1024
+        maxBuffer: 10 * 1024 * 1024,
+        timeout,
+        killSignal: "SIGKILL"
       });
       return { stdout: String(result.stdout), stderr: String(result.stderr) };
     } catch (error) {
-      const failure = error as { stderr?: string | Buffer };
+      const failure = error as { stderr?: string | Buffer; killed?: boolean; signal?: string };
+      if (failure.killed === true && failure.signal === "SIGKILL") {
+        throw new AxeCommandTimeoutError(args, timeout, error, this.binary);
+      }
       const stderr = String(failure.stderr ?? "").trim();
       const detail = stderr || (error instanceof Error ? error.message : String(error));
       throw new AxeCommandError(args, detail, error, this.binary);
     }
   }
 }
+
+/**
+ * The effective kill deadline for one invocation: the configured cap, or —
+ * when the command itself polls (`--wait-timeout <seconds>`) — that wait
+ * plus a margin, whichever is larger.
+ */
+const deadlineFor = (args: readonly string[], timeoutMs: number): number => {
+  const flagIndex = args.indexOf("--wait-timeout");
+  if (flagIndex === -1 || flagIndex + 1 >= args.length) return timeoutMs;
+  const waitSeconds = Number(args[flagIndex + 1]);
+  if (!Number.isFinite(waitSeconds) || waitSeconds < 0) return timeoutMs;
+  return Math.max(timeoutMs, waitSeconds * 1000 + WAIT_TIMEOUT_MARGIN_MS);
+};
 
 export interface AxeCliDriverOptions {
   udid: string;

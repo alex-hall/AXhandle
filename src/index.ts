@@ -1,6 +1,7 @@
 export {
   AxeCliDriver,
   AxeCommandError,
+  AxeCommandTimeoutError,
   NodeAxeCommandRunner,
 } from "./axe-cli-driver.js";
 export {
@@ -17,6 +18,7 @@ export type {
   AxeCliDriverOptions,
   AxeCommandResult,
   AxeCommandRunner,
+  NodeAxeCommandRunnerOptions,
 } from "./axe-cli-driver.js";
 export { Device } from "./device.js";
 export type {

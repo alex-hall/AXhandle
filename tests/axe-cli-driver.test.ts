@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AxeCliDriver, AxeCommandError, NodeAxeCommandRunner } from "../src/index.js";
+import { AxeCliDriver, AxeCommandError, AxeCommandTimeoutError, NodeAxeCommandRunner } from "../src/index.js";
 import type { AxeCommandRunner } from "../src/axe-cli-driver.js";
 
 class RecordingRunner implements AxeCommandRunner {
@@ -112,6 +112,36 @@ describe("AxeCliDriver", () => {
     expect(received).toBeInstanceOf(Error);
     expect((received as Error).message).toContain(binary);
     expect((received as Error).message).toContain("ENOENT");
+  });
+
+  it("kills a hung CLI process at the hard deadline with a typed error", async () => {
+    // A wedged axe process has been observed sitting for hundreds of
+    // seconds; the runner must kill it rather than freeze every wait
+    // built on top. node stands in for a hang that never returns.
+    const runner = new NodeAxeCommandRunner(process.execPath, { timeoutMs: 300 });
+    let received: unknown;
+
+    try {
+      await runner.run(["-e", "setTimeout(() => {}, 60000)"]);
+    } catch (error) {
+      received = error;
+    }
+
+    expect(received).toBeInstanceOf(AxeCommandTimeoutError);
+    expect((received as AxeCommandTimeoutError).timeoutMs).toBe(300);
+    expect((received as Error).message).toContain("hard deadline");
+  });
+
+  it("extends the deadline past an explicit --wait-timeout instead of racing it", async () => {
+    // tap --wait-timeout N legitimately polls inside the CLI for N
+    // seconds — the kill deadline must be N plus a margin, never the
+    // flat cap. The stand-in process outlives the 200ms cap but stays
+    // within the derived 1s-wait deadline.
+    const runner = new NodeAxeCommandRunner(process.execPath, { timeoutMs: 200 });
+
+    await expect(
+      runner.run(["-e", "setTimeout(() => {}, 700)", "--", "--wait-timeout", "1"])
+    ).resolves.toEqual({ stdout: "", stderr: "" });
   });
 
   it("redacts entered text from command errors and their public details", () => {
