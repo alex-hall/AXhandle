@@ -1,7 +1,7 @@
 {
   "name": "axhandle-axe-darwin-arm64",
   "version": "1.8.0-serve.1",
-  "description": "Prebuilt AXe CLI (serve-mode fork) for Apple Silicon macOS — the binary axhandle's AxeServeDriver resolves by default. Built from dphurley/AXe#serve-mode: adds `axe serve` (long-lived per-simulator command server), `--minimal-keys` dumps, and `describe-probe`.",
+  "description": "Prebuilt AXe CLI (serve-mode fork) for Apple Silicon macOS \u2014 the binary axhandle's AxeServeDriver resolves by default. Built from dphurley/AXe#serve-mode (2097636): adds `axe serve` (long-lived per-simulator command server), `--minimal-keys` dumps, and `describe-probe`.",
   "os": [
     "darwin"
   ],
