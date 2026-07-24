@@ -20,6 +20,11 @@ export type {
   AxeCommandRunner,
   NodeAxeCommandRunnerOptions,
 } from "./axe-cli-driver.js";
+export { AxeServeDriver } from "./axe-serve-driver.js";
+export type {
+  AxeServeDriverOptions,
+  AxeServeProcess,
+} from "./axe-serve-driver.js";
 export { Device } from "./device.js";
 export type {
   DeviceCommandLogEntry,

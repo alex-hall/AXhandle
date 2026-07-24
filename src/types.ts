@@ -51,6 +51,12 @@ export interface AxeDriver {
   type(text: string): Promise<void>;
   keyCombo(modifiers: readonly number[], key: number): Promise<void>;
   screenshot?(output: string): Promise<string>;
+  /**
+   * Release anything the driver holds open — long-lived helper processes
+   * above all. Idempotent; the driver may not be used afterwards. Drivers
+   * that hold nothing (one process per command) simply omit it.
+   */
+  dispose?(): void;
 }
 
 export interface Clock {
@@ -61,7 +67,7 @@ export interface Clock {
 export const systemClock: Clock = {
   now: () => Date.now(),
   sleep: (milliseconds) =>
-    new Promise((resolve) => setTimeout(resolve, milliseconds))
+    new Promise((resolve) => setTimeout(resolve, milliseconds)),
 };
 
 export interface WaitOptions {
