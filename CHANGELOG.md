@@ -12,7 +12,7 @@ misfit duration name; they are unified here as clean breaks (0.2.0 has no
 known consumers), and the conventions are now documented in Agent.MD's
 "Naming conventions" section.
 
-- `Locator.exists()` is now `Locator.isPresent()` — the *present* family
+- `Locator.exists()` is now `Locator.isPresent()` — the _present_ family
   (`isPresent`, `waitForPresent`, `waitForGone`, `presentNodes`,
   `firstPresent`) is the one spelling of non-strict presence.
 - Snapshot matching is unified under `Locator.matchesIn(tree, { strict? })`:
@@ -58,6 +58,22 @@ known consumers), and the conventions are now documented in Agent.MD's
 - `recordAction` is now reentrancy-safe: device calls nested inside the
   recorded operation run inline on the held queue slot (still logged)
   instead of deadlocking — previously this was a guaranteed hang.
+- Snapshot cache: back-to-back reads (a check-then-tap, a multi-locator
+  probe) now share one `describe-ui` dump instead of re-dumping within the
+  same instant. The cache can never mask a state change a wait is polling
+  for: every action invalidates it immediately, so does every wait-sleep on
+  the device's clock (each poll iteration re-dumps, whatever its per-call
+  interval), and reuse is bounded by `DeviceOptions.cacheWindowMs` — default
+  `min(interval - 1, 50)`, `0` to opt out.
+- `AxeServeDriver` — an `AxeDriver` over one long-lived `axe serve` process
+  instead of one CLI invocation per command, eliminating the CLI's fixed
+  per-invocation session setup. Requires an AXe build with the `serve`
+  subcommand. Screenshots and newline-bearing text fall back to a classic
+  CLI driver; a command that gets no response within its deadline kills and
+  respawns the process, so the reply stream can never desynchronize.
+- `AxeDriver.dispose?()` and `Device.dispose()` — release a driver's held
+  resources (a serve process above all) without `instanceof` checks in
+  consumer teardown.
 
 ## 0.1.1
 

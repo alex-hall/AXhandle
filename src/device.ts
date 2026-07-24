@@ -29,6 +29,17 @@ export interface DeviceTimeouts {
 export interface DeviceOptions {
   clock?: Clock;
   timeouts?: Partial<DeviceTimeouts>;
+  /**
+   * How long one `describe-ui` dump may be reused for further reads, in
+   * milliseconds. Only genuinely back-to-back reads (a check-then-tap, a
+   * multi-locator probe) share a dump: any action invalidates the cache
+   * immediately, so does every wait-sleep on the device's clock (each poll
+   * iteration re-dumps, whatever its interval), and the window — clamped
+   * strictly below the device poll interval — bounds reuse across reads the
+   * consumer spaces out itself. Defaults to `min(interval - 1, 50)`; `0`
+   * disables reuse entirely.
+   */
+  cacheWindowMs?: number;
 }
 
 export type DeviceCommandStatus = "passed" | "failed";
@@ -101,19 +112,45 @@ const defaultTimeouts: DeviceTimeouts = {
 export class Device {
   readonly clock: Clock;
   readonly timeouts: DeviceTimeouts;
+  /** Effective snapshot-reuse window after clamping; see DeviceOptions. */
+  readonly cacheWindowMs: number;
   private tail: Promise<void> = Promise.resolve();
   private sequence = 0;
   private readonly log: DeviceCommandLogEntry[] = [];
   /** Set while the current async context holds this device's queue slot. */
   private readonly holdingQueue = new AsyncLocalStorage<true>();
+  private cache: { snapshot: UiSnapshot; at: number } | undefined;
 
   constructor(
     readonly name: string,
     private readonly driver: AxeDriver,
     options: DeviceOptions = {},
   ) {
-    this.clock = options.clock ?? systemClock;
+    // Every sleep on the device's clock invalidates the snapshot cache —
+    // polls (locator waits, tap-until settles, actionability retries) all
+    // sleep through this clock, so each iteration re-dumps even when its
+    // per-call interval is shorter than the cache window.
+    const base = options.clock ?? systemClock;
+    this.clock = {
+      now: () => base.now(),
+      sleep: async (milliseconds) => {
+        await base.sleep(milliseconds);
+        this.cache = undefined;
+      },
+    };
     this.timeouts = { ...defaultTimeouts, ...options.timeouts };
+    // Clamp strictly below the poll interval: a device tuned for tight
+    // polling (a small interval) is asking for freshness over reuse.
+    const cap = Math.max(0, this.timeouts.interval - 1);
+    this.cacheWindowMs = Math.min(
+      Math.max(0, options.cacheWindowMs ?? 50),
+      cap,
+    );
+  }
+
+  /** Release the underlying driver's held resources, if it holds any. */
+  dispose(): void {
+    this.driver.dispose?.();
   }
 
   findByTestId(value: string): Locator {
@@ -144,7 +181,7 @@ export class Device {
 
   async inspect(locator: Locator): Promise<AccessibilityNode> {
     return this.enqueue("inspect", async () =>
-      locator.resolveFrom(normalizeAxeTree(await this.driver.describeUi())),
+      locator.resolveFrom((await this.readSnapshot()).tree),
     );
   }
 
@@ -153,20 +190,16 @@ export class Device {
   }
 
   async uiSnapshot(): Promise<UiSnapshot> {
-    return this.enqueue("inspect", async () => {
-      const raw = await this.driver.describeUi();
-      return { raw, tree: normalizeAxeTree(raw) };
-    });
+    return this.enqueue("inspect", async () => this.readSnapshot());
   }
 
   async count(locator: Locator): Promise<number> {
     return this.enqueue(
       "inspect",
       async () =>
-        locator.matchesIn(normalizeAxeTree(await this.driver.describeUi()), {
+        locator.matchesIn((await this.readSnapshot()).tree, {
           strict: true,
-        })
-          .length,
+        }).length,
     );
   }
 
@@ -181,7 +214,7 @@ export class Device {
   /** Non-strict matching nodes from one fresh snapshot; see Locator.presentNodes(). */
   async presentNodes(locator: Locator): Promise<AccessibilityNode[]> {
     return this.enqueue("inspect", async () =>
-      locator.matchesIn(normalizeAxeTree(await this.driver.describeUi())),
+      locator.matchesIn((await this.readSnapshot()).tree),
     );
   }
 
@@ -195,7 +228,7 @@ export class Device {
     ...locators: readonly Locator[]
   ): Promise<Locator | undefined> {
     return this.enqueue("inspect", async () => {
-      const tree = normalizeAxeTree(await this.driver.describeUi());
+      const { tree } = await this.readSnapshot();
       return locators.find((locator) => locator.matchesIn(tree).length > 0);
     });
   }
@@ -251,17 +284,27 @@ export class Device {
    * the log row — coordinate taps are semantically opaque, so a tag like
    * `numpad-7` is the difference between a readable log and noise.
    */
-  async tapPoint(x: number, y: number, options: RawActionOptions = {}): Promise<void> {
+  async tapPoint(
+    x: number,
+    y: number,
+    options: RawActionOptions = {},
+  ): Promise<void> {
     await this.enqueue(options.command ?? "tap-point", () =>
       this.driver.tap({ kind: "point", x, y }),
     );
   }
 
   /** Long-press at a point; requires driver support. See tapPoint on `command`. */
-  async longPress(x: number, y: number, options: LongPressOptions = {}): Promise<void> {
+  async longPress(
+    x: number,
+    y: number,
+    options: LongPressOptions = {},
+  ): Promise<void> {
     const longPress = this.driver.longPress?.bind(this.driver);
     if (!longPress) {
-      throw new Error("The configured AXe driver does not support long-presses.");
+      throw new Error(
+        "The configured AXe driver does not support long-presses.",
+      );
     }
     await this.enqueue(options.command ?? "long-press", () =>
       longPress(x, y, options.holdMs),
@@ -295,7 +338,10 @@ export class Device {
     });
   }
 
-  async swipe(gesture: AxeSwipeGesture, options: RawActionOptions = {}): Promise<void> {
+  async swipe(
+    gesture: AxeSwipeGesture,
+    options: RawActionOptions = {},
+  ): Promise<void> {
     const swipe = this.driver.swipe?.bind(this.driver);
     if (!swipe) {
       throw new Error("The configured AXe driver does not support swipes.");
@@ -406,6 +452,26 @@ export class Device {
     return this.sequence;
   }
 
+  /**
+   * The current accessibility snapshot. Reuses the last dump when it is
+   * younger than cacheWindowMs and no action has invalidated it since
+   * (execute() drops the cache after every non-read command); otherwise runs
+   * a fresh dump and refreshes the cache.
+   */
+  private async readSnapshot(): Promise<UiSnapshot> {
+    if (
+      this.cacheWindowMs > 0 &&
+      this.cache &&
+      this.clock.now() - this.cache.at <= this.cacheWindowMs
+    ) {
+      return this.cache.snapshot;
+    }
+    const raw = await this.driver.describeUi();
+    const snapshot: UiSnapshot = { raw, tree: normalizeAxeTree(raw) };
+    this.cache = { snapshot, at: this.clock.now() };
+    return snapshot;
+  }
+
   private async tapOnce(locator: Locator, options: WaitOptions): Promise<void> {
     const { tree, node } = await this.resolveActionTarget(locator, options);
     await this.driver.tap(this.tapTargetFor(node, tree));
@@ -445,7 +511,7 @@ export class Device {
     let lastError: LocatorResolutionError | undefined;
 
     while (true) {
-      const tree = normalizeAxeTree(await this.driver.describeUi());
+      const { tree } = await this.readSnapshot();
       try {
         const node = locator.resolveFrom(tree);
         if (!node.visible) {
@@ -527,6 +593,11 @@ export class Device {
         error: error instanceof Error ? error.message : String(error),
       });
       throw error;
+    } finally {
+      // Any command other than a read may have changed the screen (taps,
+      // typing, gestures, whatever a recordAction wrapped). Drop the cached
+      // snapshot so the next read re-dumps and sees the new state.
+      if (command !== "inspect") this.cache = undefined;
     }
   }
 }

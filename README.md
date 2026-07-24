@@ -29,6 +29,7 @@ the Apple tooling a simulator suite ends up needing anyway:
 - [Text input](#text-input)
 - [Switches and checkboxes](#switches-and-checkboxes)
 - [Timeouts](#timeouts)
+- [Performance tuning](#performance-tuning)
 - [Screenshots and video](#screenshots-and-video)
 - [Screenshot/Debug when a test fails](#screenshotdebug-when-a-test-fails)
 - [Multiple devices](#multiple-devices)
@@ -71,53 +72,54 @@ creates. Actions are plain promises — no hidden command queue.
 
 **Finding elements**
 
-| API | What it does |
-| --- | --- |
-| `findByRole("button", { name: "Send" })` | Match by accessibility role and name — the selector a person would use |
+| API                                        | What it does                                                                                          |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| `findByRole("button", { name: "Send" })`   | Match by accessibility role and name — the selector a person would use                                |
 | `findByText(value)` / `findByLabel(value)` | Match visible text or accessibility label; `{ exact: false }` for case-insensitive substring matching |
-| `findByTestId(value)` | Match a `testID` / accessibility identifier |
-| `.first()` / `.second()` / `.nth(i)` | Choose among duplicate matches explicitly |
-| `parent.findBy…(…)` | Scope a query inside a previous match |
+| `findByTestId(value)`                      | Match a `testID` / accessibility identifier                                                           |
+| `.first()` / `.second()` / `.nth(i)`       | Choose among duplicate matches explicitly                                                             |
+| `parent.findBy…(…)`                        | Scope a query inside a previous match                                                                 |
 
 **Acting on them**
 
-| API | What it does |
-| --- | --- |
-| `tap()` | Wait until the element is unique, visible, and enabled; then tap. `tap({ until })` retries until an arrival marker appears |
-| `type(text)` | Tap the field, then send HID keystrokes |
-| `fill(text)` | Replace field contents (select-all + type) and verify the result |
-| `check()` / `uncheck()` | Read a switch's state, tap only if needed, verify |
-| `tapLabel(label)` | Tap by label through AXe directly — reaches native alert buttons the tree never shows |
-| `tapPoint(x, y)` / `longPress(x, y)` / `swipe(gesture)` | Raw coordinate gestures, logged and queued |
-| `screenshot(path)` | PNG of the current screen |
+| API                                                     | What it does                                                                                                               |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `tap()`                                                 | Wait until the element is unique, visible, and enabled; then tap. `tap({ until })` retries until an arrival marker appears |
+| `type(text)`                                            | Tap the field, then send HID keystrokes                                                                                    |
+| `fill(text)`                                            | Replace field contents (select-all + type) and verify the result                                                           |
+| `check()` / `uncheck()`                                 | Read a switch's state, tap only if needed, verify                                                                          |
+| `tapLabel(label)`                                       | Tap by label through AXe directly — reaches native alert buttons the tree never shows                                      |
+| `tapPoint(x, y)` / `longPress(x, y)` / `swipe(gesture)` | Raw coordinate gestures, logged and queued                                                                                 |
+| `screenshot(path)`                                      | PNG of the current screen                                                                                                  |
 
 **Waiting and asserting**
 
-| API | What it does |
-| --- | --- |
-| `expect(locator).toBeVisible()` etc. | Retrying Vitest matchers: `toBeVisible/Hidden`, `toBeEnabled/Disabled`, `toBeChecked/Unchecked`, `toHaveText/Value/Count` |
-| `waitForVisible()` / `waitFor(predicate)` | Poll until the (single) element satisfies a condition |
-| `isPresent()` / `waitForPresent()` / `waitForGone()` | Non-strict presence: "is anything matching on screen?" |
-| `firstPresent(...locators)` | Which of these screens am I on? One tree fetch answers |
-| `presentNodes()` / `matchesIn(tree)` | Read the matching nodes themselves; evaluate many locators against one snapshot |
-| `poll(condition, options)` | The bare polling loop, exported for your own waits |
+| API                                                  | What it does                                                                                                              |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `expect(locator).toBeVisible()` etc.                 | Retrying Vitest matchers: `toBeVisible/Hidden`, `toBeEnabled/Disabled`, `toBeChecked/Unchecked`, `toHaveText/Value/Count` |
+| `waitForVisible()` / `waitFor(predicate)`            | Poll until the (single) element satisfies a condition                                                                     |
+| `isPresent()` / `waitForPresent()` / `waitForGone()` | Non-strict presence: "is anything matching on screen?"                                                                    |
+| `firstPresent(...locators)`                          | Which of these screens am I on? One tree fetch answers                                                                    |
+| `presentNodes()` / `matchesIn(tree)`                 | Read the matching nodes themselves; evaluate many locators against one snapshot                                           |
+| `poll(condition, options)`                           | The bare polling loop, exported for your own waits                                                                        |
 
 **Running a suite**
 
-| API | What it does |
-| --- | --- |
-| `createAxeTest(options)` | Vitest fixture: device creation, reset, failure evidence, deterministic teardown |
-| `DirectoryArtifactSink` | On failure, write screenshot + accessibility tree + command log to a directory |
-| `SimulatorVideoRecorder` | Record every test; keep video on failure, discard on pass |
-| `commandLog()` / `commandMark()` / `recordAction()` | Per-device action log with timings, windowable per step |
+| API                                                 | What it does                                                                                                             |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `createAxeTest(options)`                            | Vitest fixture: device creation, reset, failure evidence, deterministic teardown                                         |
+| `DirectoryArtifactSink`                             | On failure, write screenshot + accessibility tree + command log to a directory                                           |
+| `SimulatorVideoRecorder`                            | Record every test; keep video on failure, discard on pass                                                                |
+| `AxeServeDriver`                                    | One long-lived `axe serve` process instead of one CLI invocation per command ([Performance tuning](#performance-tuning)) |
+| `commandLog()` / `commandMark()` / `recordAction()` | Per-device action log with timings, windowable per step                                                                  |
 
 **Simulator control**
 
-| API | What it does |
-| --- | --- |
-| `XcrunSimulatorController` | Install/uninstall/launch/terminate, permission grants, keychain reset, pasteboard get/set, container paths |
-| `NotifyutilBiometricController` | Enroll, match, and reject Face ID / Touch ID prompts |
-| `diagnoseAxe(options)` | Read-only preflight: AXe version, simulator booted, tree parses — with a per-check report |
+| API                             | What it does                                                                                               |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `XcrunSimulatorController`      | Install/uninstall/launch/terminate, permission grants, keychain reset, pasteboard get/set, container paths |
+| `NotifyutilBiometricController` | Enroll, match, and reject Face ID / Touch ID prompts                                                       |
+| `diagnoseAxe(options)`          | Read-only preflight: AXe version, simulator booted, tree parses — with a per-check report                  |
 
 ## Vitest setup
 
@@ -192,12 +194,16 @@ are different — "is the toast gone?", "which screen am I on?" — and have
 their own non-strict APIs:
 
 ```ts
-if (await device.findByLabel("Saved").isPresent()) { /* … */ }
+if (await device.findByLabel("Saved").isPresent()) {
+  /* … */
+}
 await device.findByLabel("Uploading").waitForGone();
 
 // One tree fetch decides a multi-screen race:
 const seen = await device.firstPresent(welcome, home);
-if (seen === home) { /* already signed in */ }
+if (seen === home) {
+  /* already signed in */
+}
 ```
 
 `presentNodes()` returns the matching nodes themselves — useful when the
@@ -334,7 +340,8 @@ video.start();
 try {
   // ... drive the app ...
 } finally {
-  if (failed) await video.stop(); // finalize and keep
+  if (failed)
+    await video.stop(); // finalize and keep
   else await video.discard(); // finalize and delete
 }
 ```
