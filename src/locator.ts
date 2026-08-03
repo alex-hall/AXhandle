@@ -10,10 +10,20 @@ import type {
 } from "./types.js";
 
 export type LocatorQuery =
-  | { kind: "testId"; value: string }
+  | { kind: "testId"; value: string; startsWith?: boolean }
   | { kind: "text"; value: string; exact?: boolean }
   | { kind: "label"; value: string; exact?: boolean }
   | { kind: "role"; role: string; name?: string };
+
+export interface TestIdQueryOptions {
+  /**
+   * `startsWith: true` matches any id beginning with `value` — for handles
+   * templated per entity (`approval-hud-<serverAssignedId>`), where a test
+   * knows the KIND of element it wants but not the id the backend minted.
+   * Pair with `presentIds()` to read which entities are on screen.
+   */
+  startsWith?: boolean;
+}
 
 export interface TextQueryOptions {
   /**
@@ -72,8 +82,8 @@ export class Locator {
     return new Locator(device, [{ query }]);
   }
 
-  findByTestId(value: string): Locator {
-    return this.append({ kind: "testId", value });
+  findByTestId(value: string, options: TestIdQueryOptions = {}): Locator {
+    return this.append(testIdQuery(value, options));
   }
 
   findByText(value: string, options: TextQueryOptions = {}): Locator {
@@ -222,6 +232,30 @@ export class Locator {
    */
   async presentNodes(): Promise<AccessibilityNode[]> {
     return this.device.presentNodes(this);
+  }
+
+  /**
+   * The DISTINCT accessibility ids among the present matches, in visual
+   * top-to-bottom order (tree order for ties or missing frames), from one
+   * snapshot. Nodes without an id are skipped.
+   *
+   * Distinct is load-bearing: some widgets mount the same id on TWO nodes —
+   * anything built on React Native Gesture Handler's `createNativeWrapper`
+   * puts it on the handler view and the button beneath — so counting nodes
+   * reports two of a thing there is one of. This read answers "which
+   * entities are on screen" for templated handles: pair it with
+   * `findByTestId(prefix, { startsWith: true })`.
+   */
+  async presentIds(): Promise<string[]> {
+    const nodes = await this.presentNodes();
+    const carriers = nodes.filter(
+      (node): node is AccessibilityNode & { id: string } =>
+        node.id !== undefined,
+    );
+    const ordered = [...carriers].sort(
+      (a, b) => (a.frame?.y ?? 0) - (b.frame?.y ?? 0),
+    );
+    return [...new Set(ordered.map((node) => node.id))];
   }
 
   async waitForVisible(options?: WaitOptions): Promise<AccessibilityNode> {
@@ -475,6 +509,14 @@ const textQuery = (
 ): LocatorQuery =>
   options.exact === false ? { kind, value, exact: false } : { kind, value };
 
+const testIdQuery = (
+  value: string,
+  options: TestIdQueryOptions,
+): LocatorQuery =>
+  options.startsWith
+    ? { kind: "testId", value, startsWith: true }
+    : { kind: "testId", value };
+
 /**
  * Normalization for `exact: false` queries: case-insensitive, with no-break
  * spaces treated as ordinary spaces (React Native joins composite labels with
@@ -496,6 +538,8 @@ const matchesQuery = (
 ): boolean => {
   switch (query.kind) {
     case "testId":
+      if (query.startsWith)
+        return node.id !== undefined && node.id.startsWith(query.value);
       return node.id === query.value;
     case "text":
       if (query.exact === false) {
@@ -525,7 +569,7 @@ const dedupe = (nodes: AccessibilityNode[]): AccessibilityNode[] => [
 const queryDescription = (query: LocatorQuery): string => {
   switch (query.kind) {
     case "testId":
-      return `findByTestId(${JSON.stringify(query.value)})`;
+      return `findByTestId(${JSON.stringify(query.value)}${query.startsWith ? ", { startsWith: true }" : ""})`;
     case "text":
       return `findByText(${JSON.stringify(query.value)}${query.exact === false ? ", { exact: false }" : ""})`;
     case "label":

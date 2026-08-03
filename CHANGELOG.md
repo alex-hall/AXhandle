@@ -129,6 +129,22 @@ known consumers), and the conventions are now documented in Agent.MD's
   frame (`viewportHeight` overrides); swipes run in the element's own
   column, keep clear of the home-gesture screen edges, and settle behind
   a real-time inertia floor (`settleMs`).
+- `findByTestId(value, { startsWith: true })` — prefix matching for
+  handles templated per entity (`approval-hud-<serverAssignedId>`), where
+  a test knows the KIND of element but not the id the backend minted.
+  Composes with the whole locator surface (`first()`, `last()`, waits,
+  scoping).
+- `Locator.presentIds()` — the distinct accessibility ids among the
+  present matches, in visual top-to-bottom order, from one snapshot.
+  Distinct is load-bearing: widgets built on RNGH's `createNativeWrapper`
+  mount the same id on two nodes, so counting nodes reports two of a thing
+  there is one of.
+- `Device.waitForForeground({ marker })` — proof the app under test is
+  actually frontmost, for use before blind gestures after a (re)launch.
+  The marker alone cannot prove it: the home screen shows the app's ICON
+  with the same label, so the check is marker present AND springboard
+  absent (only the home screen has a "Dock"). Defaults are generous —
+  cold launches are slow and `describe-ui` hiccups right after one.
 
 ## 0.1.1
 

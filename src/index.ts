@@ -45,6 +45,7 @@ export type {
   ScrollIntoViewOptions,
   TapLabelOptions,
   UiSnapshot,
+  WaitForForegroundOptions,
 } from "./device.js";
 export { diagnoseAxe } from "./doctor.js";
 export { supportedAxeVersions } from "./doctor.js";
@@ -60,7 +61,12 @@ export {
   LocatorResolutionError,
   LocatorTimeoutError,
 } from "./locator.js";
-export type { ClickOptions, TapOptions, TextQueryOptions } from "./locator.js";
+export type {
+  ClickOptions,
+  TapOptions,
+  TestIdQueryOptions,
+  TextQueryOptions,
+} from "./locator.js";
 export { poll, PollTimeoutError } from "./poll.js";
 export type { PollOptions } from "./poll.js";
 export { checkedState } from "./state.js";
