@@ -90,18 +90,20 @@ describe("UnsupportedBiometricController", () => {
 });
 
 describe("XcrunSimulatorController app lifecycle additions", () => {
-  it("covers uninstall, container queries, and keychain reset", async () => {
+  it("covers uninstall, keychain reset, URL opening, and container queries", async () => {
     const runner = new RecordingRunner();
     const controller = new XcrunSimulatorController(runner);
 
     await controller.uninstall("SIMULATOR", "dev.example.app");
     await controller.resetKeychain("SIMULATOR");
+    await controller.openUrl("SIMULATOR", "example://invite?code=42");
     await controller.appContainerPath("SIMULATOR", "dev.example.app");
     await controller.appContainerPath("SIMULATOR", "dev.example.app", "data");
 
     expect(runner.calls.map((call) => call.args)).toEqual([
       ["uninstall", "SIMULATOR", "dev.example.app"],
       ["keychain", "SIMULATOR", "reset"],
+      ["openurl", "SIMULATOR", "example://invite?code=42"],
       ["get_app_container", "SIMULATOR", "dev.example.app", "app"],
       ["get_app_container", "SIMULATOR", "dev.example.app", "data"],
     ]);

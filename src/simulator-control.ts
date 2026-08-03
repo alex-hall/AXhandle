@@ -104,6 +104,7 @@ export interface SimulatorController {
   ): Promise<string | undefined>;
   isAppInstalled(udid: string, bundleId: string): Promise<boolean>;
   resetKeychain(udid: string): Promise<void>;
+  openUrl(udid: string, url: string): Promise<void>;
   setPasteboard(udid: string, text: string): Promise<void>;
   getPasteboard(udid: string): Promise<string>;
   grantPermission(
@@ -192,6 +193,16 @@ export class XcrunSimulatorController implements SimulatorController {
    */
   async resetKeychain(udid: string): Promise<void> {
     await this.runner.run(["keychain", udid, "reset"]);
+  }
+
+  /**
+   * Open a URL on one simulator — deep links, universal links, web URLs.
+   * Per-device, which makes it the right way to hand a link to an app under
+   * test: the pasteboard is one host-wide resource every simulator shares,
+   * so parallel suites delivering links through it clobber each other.
+   */
+  async openUrl(udid: string, url: string): Promise<void> {
+    await this.runner.run(["openurl", udid, url]);
   }
 
   /**

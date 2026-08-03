@@ -95,6 +95,50 @@ describe("Device locators", () => {
     );
   });
 
+  it("selects the final match with last(), whatever the count", async () => {
+    const device = new Device("primary", new FixtureAxeDriver(messageScreen));
+
+    // Both threads render a "Hello"; last() takes the one iOS appended last.
+    await expect(
+      device.findByText("Hello").last().resolve(),
+    ).resolves.toMatchObject({
+      frame: { y: 336 },
+    });
+    await expect(device.findByText("Hello").last().isPresent()).resolves.toBe(
+      true,
+    );
+
+    await expect(device.findByText("Absent").last().resolve()).rejects.toThrow(
+      "requested the last match, but only 0 matches found",
+    );
+    await expect(device.findByText("Absent").last().isPresent()).resolves.toBe(
+      false,
+    );
+  });
+
+  it("reads label, value, and frame from the strictly resolved element", async () => {
+    const device = new Device("primary", new FixtureAxeDriver(messageScreen));
+
+    await expect(device.findByTestId("thread-a").label()).resolves.toBe(
+      "Alice thread",
+    );
+    await expect(device.findByTestId("send-a").frame()).resolves.toEqual({
+      x: 320,
+      y: 240,
+      width: 54,
+      height: 44,
+    });
+    // No AXValue on the fixture's static text — the read is honest about it.
+    await expect(
+      device.findByText("Hello").second().value(),
+    ).resolves.toBeUndefined();
+
+    // Readers are strict: ambiguity is an error, exactly like resolve().
+    await expect(device.findByText("Hello").label()).rejects.toThrow(
+      LocatorResolutionError,
+    );
+  });
+
   it("click() stays a working alias for tap() until 1.0", async () => {
     const driver = new FixtureAxeDriver(messageScreen);
     const device = new Device("primary", driver);

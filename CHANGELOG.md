@@ -74,6 +74,27 @@ known consumers), and the conventions are now documented in Agent.MD's
 - `AxeDriver.dispose?()` and `Device.dispose()` — release a driver's held
   resources (a serve process above all) without `instanceof` checks in
   consumer teardown.
+- Every failure now names its device: errors thrown through the device
+  queue and locator waits carry a ` [device-name]` suffix (command-log rows
+  included), so multi-device suites can tell identical-looking failures
+  apart without wrapping every call. `Device.tagMessage()` exposes the same
+  tagging for consumer-built helpers; already-tagged messages are never
+  double-tagged.
+- `Locator.last()` — the final match in tree order, whatever the count.
+  iOS appends stacked presentations last, so
+  `findByRole("sheet").last()` scopes to the sheet actually in front —
+  the disambiguation for alerts that reuse a word visible on the screen
+  behind them.
+- `Locator.label()` / `value()` / `frame()` — strict single-element
+  attribute reads (Playwright's `textContent()`/`boundingBox()` shape), for
+  elements that exist to be read rather than tapped and for
+  relative-position assertions.
+- `Device.type(text)` — HID-type into whatever currently holds focus,
+  resolving nothing. The fast path when the previous action (a `tapLabel`,
+  a coordinate tap on an AX-invisible target) already owns the focus.
+- `XcrunSimulatorController.openUrl(udid, url)` — deep links per device.
+  Unlike the pasteboard (one host-wide resource every simulator shares),
+  `simctl openurl` cannot cross-talk between parallel suites.
 
 ## 0.1.1
 

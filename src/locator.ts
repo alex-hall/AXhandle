@@ -5,6 +5,7 @@ import type {
   AccessibilityNode,
   AccessibilityTree,
   FillOptions,
+  Frame,
   WaitOptions,
 } from "./types.js";
 
@@ -88,22 +89,34 @@ export class Locator {
   }
 
   first(): Locator {
-    return this.nth(0);
+    return this.withIndex(0);
   }
 
   second(): Locator {
-    return this.nth(1);
+    return this.withIndex(1);
   }
 
   third(): Locator {
-    return this.nth(2);
+    return this.withIndex(2);
+  }
+
+  /**
+   * The final match in tree order, whatever the count. The topmost of
+   * stacked presentations (sheets, overlays) is the one iOS appends last,
+   * so `findByRole("sheet").last()` scopes to the sheet actually in front.
+   */
+  last(): Locator {
+    return this.withIndex(-1);
   }
 
   nth(index: number): Locator {
     if (!Number.isInteger(index) || index < 0) {
       throw new RangeError("Locator nth() expects a non-negative integer.");
     }
+    return this.withIndex(index);
+  }
 
+  private withIndex(index: number): Locator {
     const last = this.segments.at(-1);
     if (!last) throw new Error("A locator needs at least one query segment.");
 
@@ -145,6 +158,32 @@ export class Locator {
     return this.device.inspect(this);
   }
 
+  /**
+   * The resolved element's accessibility label, or undefined when it carries
+   * none. Strict like every read that names one element: ambiguity is an
+   * error. For "the first label if anything matches", read presentNodes().
+   *
+   * React Native note: a Text's rendered string arrives as the LABEL — RN
+   * does not populate AXValue for Text, so a value read on it comes back
+   * undefined.
+   */
+  async label(): Promise<string | undefined> {
+    return (await this.resolve()).label;
+  }
+
+  /** The resolved element's accessibility value (strict), if it has one. */
+  async value(): Promise<string | number | boolean | undefined> {
+    return (await this.resolve()).value;
+  }
+
+  /**
+   * The resolved element's on-screen frame (strict), if AXe reported one.
+   * The primitive for relative-position assertions — row A sits above row B.
+   */
+  async frame(): Promise<Frame | undefined> {
+    return (await this.resolve()).frame;
+  }
+
   async count(): Promise<number> {
     return this.device.count(this);
   }
@@ -184,7 +223,9 @@ export class Locator {
       clock: this.device.clock,
       onTimeout: () =>
         new LocatorTimeoutError(
-          `${this.describe()} never appeared within ${timeout}ms.`,
+          this.device.tagMessage(
+            `${this.describe()} never appeared within ${timeout}ms.`,
+          ),
         ),
     });
   }
@@ -203,7 +244,9 @@ export class Locator {
         clock: this.device.clock,
         onTimeout: () =>
           new LocatorTimeoutError(
-            `${this.describe()} still had ${lastCount} ${pluralize("match", lastCount)} after ${timeout}ms.`,
+            this.device.tagMessage(
+              `${this.describe()} still had ${lastCount} ${pluralize("match", lastCount)} after ${timeout}ms.`,
+            ),
           ),
       },
     );
@@ -242,7 +285,9 @@ export class Locator {
           const reason =
             lastError instanceof Error ? lastError.message : String(lastError);
           return new LocatorTimeoutError(
-            `${this.describe()} did not satisfy its condition within ${timeout}ms. ${reason}`,
+            this.device.tagMessage(
+              `${this.describe()} did not satisfy its condition within ${timeout}ms. ${reason}`,
+            ),
           );
         },
       },
@@ -288,7 +333,9 @@ export class Locator {
         clock: this.device.clock,
         onTimeout: () =>
           new LocatorTimeoutError(
-            `${this.describe()} had ${actual} ${pluralize("match", actual)}${expected === undefined ? "" : ` instead of ${expected}`} within ${timeout}ms.`,
+            this.device.tagMessage(
+              `${this.describe()} had ${actual} ${pluralize("match", actual)}${expected === undefined ? "" : ` instead of ${expected}`} within ${timeout}ms.`,
+            ),
           ),
       },
     );
@@ -347,10 +394,10 @@ export class Locator {
         .filter((node) => matchesQuery(node, segment.query));
 
       if (segment.index !== undefined) {
-        const selected = matches[segment.index];
+        const selected = matches.at(segment.index);
         if (!selected) {
           throw new LocatorResolutionError(
-            `${this.describe()} requested ${ordinal(segment.index)} match, but only ${matches.length} ${pluralize("match", matches.length)} found.`,
+            `${this.describe()} requested the ${indexDescription(segment.index)} match, but only ${matches.length} ${pluralize("match", matches.length)} found.`,
           );
         }
         roots = [selected];
@@ -379,7 +426,7 @@ export class Locator {
       );
 
       if (segment.index !== undefined) {
-        const selected = matches[segment.index];
+        const selected = matches.at(segment.index);
         roots = selected ? [selected] : [];
       } else {
         roots = matches;
@@ -395,7 +442,7 @@ export class Locator {
     return this.segments
       .map(
         ({ query, index }) =>
-          `${queryDescription(query)}${index === undefined ? "" : `.${ordinal(index)}`}`,
+          `${queryDescription(query)}${index === undefined ? "" : `.${indexDescription(index)}`}`,
       )
       .join(".findBy");
   }
@@ -486,8 +533,12 @@ const buildStrictnessMessage = (
       return `  ${index + 1}. ${path ?? nodeDescription(node)}`;
     })
     .join("\n");
-  return `${locator} expected one matching accessible element, found ${matches.length}:\n${candidates}\nRefine the query, scope it with findBy…, or select deliberately with first(), second(), or nth().`;
+  return `${locator} expected one matching accessible element, found ${matches.length}:\n${candidates}\nRefine the query, scope it with findBy…, or select deliberately with first(), second(), nth(), or last().`;
 };
+
+/** `last()` stores index -1; everything else is an ordinal position. */
+const indexDescription = (index: number): string =>
+  index === -1 ? "last" : ordinal(index);
 
 const ordinal = (index: number): string => {
   const number = index + 1;
