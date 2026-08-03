@@ -4,7 +4,11 @@ import {
   LocatorResolutionError,
   LocatorTimeoutError,
 } from "./locator.js";
-import type { TapOptions, TextQueryOptions } from "./locator.js";
+import type {
+  TapOptions,
+  TestIdQueryOptions,
+  TextQueryOptions,
+} from "./locator.js";
 import { poll, PollTimeoutError } from "./poll.js";
 import { checkedState } from "./state.js";
 import { normalizeAxeTree } from "./tree.js";
@@ -98,6 +102,22 @@ export interface UiSnapshot {
   raw: unknown;
   tree: AccessibilityTree;
 }
+
+export interface WaitForForegroundOptions {
+  /**
+   * Proof that the app's own UI is on screen — a stable element of its
+   * entry screen. Foregroundness needs it together with the absence of the
+   * springboard; see Device.waitForForeground.
+   */
+  marker: Locator;
+  /** Default 30s — generous because cold launches are slow. */
+  timeout?: number;
+  /** Default 1s — describe-ui can hiccup right after a launch. */
+  interval?: number;
+}
+
+/** Only the springboard (the iOS home screen) has a "Dock". */
+const SPRINGBOARD_MARKER = "Dock";
 
 export interface ScrollIntoViewOptions {
   /** Maximum swipes before failing (default 6). */
@@ -224,8 +244,13 @@ export class Device {
       : `${message} ${tag}`;
   }
 
-  findByTestId(value: string): Locator {
-    return Locator.from(this, { kind: "testId", value });
+  findByTestId(value: string, options: TestIdQueryOptions = {}): Locator {
+    return Locator.from(
+      this,
+      options.startsWith
+        ? { kind: "testId", value, startsWith: true }
+        : { kind: "testId", value },
+    );
   }
 
   findByText(value: string, options: TextQueryOptions = {}): Locator {
@@ -302,6 +327,47 @@ export class Device {
       const { tree } = await this.readSnapshot();
       return locators.find((locator) => locator.matchesIn(tree).length > 0);
     });
+  }
+
+  /**
+   * Wait until the app under test is the FOREGROUND app — before any blind
+   * gesture after a launch or relaunch. When an app crashes, taps land on
+   * the iOS home screen instead (where a long-press enters icon-rearrange
+   * mode and quietly derails everything after it).
+   *
+   * `marker` is a locator proving the app's own UI is up. The marker alone
+   * is not enough: the home screen shows the app's ICON carrying the same
+   * label, so foregroundness is the marker present AND the springboard
+   * absent — only the home screen has a "Dock". Defaults are deliberately
+   * generous (30s timeout, 1s interval): cold launches are slow and
+   * `describe-ui` can hiccup right after one, so a snappy poll here
+   * concludes "crashed" about an app that is still starting.
+   */
+  async waitForForeground(options: WaitForForegroundOptions): Promise<void> {
+    const timeout = options.timeout ?? 30_000;
+    const interval = options.interval ?? 1_000;
+    const springboard = this.findByLabel(SPRINGBOARD_MARKER);
+
+    await poll(
+      async () => {
+        const { tree } = await this.uiSnapshot();
+        return (
+          options.marker.matchesIn(tree).length > 0 &&
+          springboard.matchesIn(tree).length === 0
+        );
+      },
+      {
+        timeout,
+        interval,
+        clock: this.clock,
+        onTimeout: () =>
+          new LocatorTimeoutError(
+            this.tagMessage(
+              `The app (marker ${options.marker.describe()}) was not the foreground app within ${timeout}ms — did it crash?`,
+            ),
+          ),
+      },
+    );
   }
 
   /** @deprecated Use {@link tap} — iOS has taps, not clicks. Removed in 1.0. */

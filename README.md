@@ -76,7 +76,7 @@ creates. Actions are plain promises — no hidden command queue.
 | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
 | `findByRole("button", { name: "Send" })`         | Match by accessibility role and name — the selector a person would use                                    |
 | `findByText(value)` / `findByLabel(value)`       | Match visible text or accessibility label; `{ exact: false }` for case-insensitive substring matching     |
-| `findByTestId(value)`                            | Match a `testID` / accessibility identifier                                                               |
+| `findByTestId(value)`                            | Match a `testID` / accessibility identifier; `{ startsWith: true }` for per-entity handles (`hud-<id>`)   |
 | `.first()` / `.second()` / `.nth(i)` / `.last()` | Choose among duplicate matches explicitly; `last()` takes the final match — the topmost of stacked sheets |
 | `parent.findBy…(…)`                              | Scope a query inside a previous match                                                                     |
 
@@ -96,15 +96,16 @@ creates. Actions are plain promises — no hidden command queue.
 
 **Waiting and asserting**
 
-| API                                                  | What it does                                                                                                              |
-| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `expect(locator).toBeVisible()` etc.                 | Retrying Vitest matchers: `toBeVisible/Hidden`, `toBeEnabled/Disabled`, `toBeChecked/Unchecked`, `toHaveText/Value/Count` |
-| `waitForVisible()` / `waitFor(predicate)`            | Poll until the (single) element satisfies a condition                                                                     |
-| `isPresent()` / `waitForPresent()` / `waitForGone()` | Non-strict presence: "is anything matching on screen?"                                                                    |
-| `firstPresent(...locators)`                          | Which of these screens am I on? One tree fetch answers                                                                    |
-| `label()` / `value()` / `frame()`                    | Strict attribute reads from the one resolved element — for content that exists to be read, and position assertions        |
-| `presentNodes()` / `matchesIn(tree)`                 | Read the matching nodes themselves; evaluate many locators against one snapshot                                           |
-| `poll(condition, options)`                           | The bare polling loop, exported for your own waits                                                                        |
+| API                                                   | What it does                                                                                                              |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `expect(locator).toBeVisible()` etc.                  | Retrying Vitest matchers: `toBeVisible/Hidden`, `toBeEnabled/Disabled`, `toBeChecked/Unchecked`, `toHaveText/Value/Count` |
+| `waitForVisible()` / `waitFor(predicate)`             | Poll until the (single) element satisfies a condition                                                                     |
+| `isPresent()` / `waitForPresent()` / `waitForGone()`  | Non-strict presence: "is anything matching on screen?"                                                                    |
+| `firstPresent(...locators)`                           | Which of these screens am I on? One tree fetch answers                                                                    |
+| `label()` / `value()` / `frame()`                     | Strict attribute reads from the one resolved element — for content that exists to be read, and position assertions        |
+| `presentNodes()` / `presentIds()` / `matchesIn(tree)` | Read the matching nodes (or their distinct ids, top-to-bottom); evaluate many locators against one snapshot               |
+| `waitForForeground({ marker })`                       | Is the app actually frontmost? Marker present AND no springboard — catches crashes before blind gestures                  |
+| `poll(condition, options)`                            | The bare polling loop, exported for your own waits                                                                        |
 
 **Running a suite**
 
