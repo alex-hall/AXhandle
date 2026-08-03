@@ -42,6 +42,7 @@ export type {
   DeviceTimeouts,
   LongPressOptions,
   RawActionOptions,
+  ScrollIntoViewOptions,
   TapLabelOptions,
   UiSnapshot,
 } from "./device.js";

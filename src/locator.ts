@@ -1,4 +1,4 @@
-import type { Device } from "./device.js";
+import type { Device, ScrollIntoViewOptions } from "./device.js";
 import { poll } from "./poll.js";
 import { accessibilityPath, descendants, nodeDescription } from "./tree.js";
 import type {
@@ -142,6 +142,22 @@ export class Locator {
   /** Replaces existing text with Command-A followed by AXe HID text entry. */
   async fill(text: string, options?: FillOptions): Promise<void> {
     await this.device.fill(this, text, options);
+  }
+
+  /**
+   * Swipe until this element sits fully inside the viewport (minus any
+   * insets), then return; throws when `maxSwipes` isn't enough.
+   *
+   * An element below the fold is still in the accessibility tree with a
+   * real frame, so every locator reports it present and a tap resolves it —
+   * and then taps a point past the edge of the screen. Nothing reports an
+   * error: the press either vanishes or lands on whatever the OS clamps it
+   * to. Scroll first; the viewport comes from the tree root's frame, and
+   * `bottomInset` handles the row-behind-a-pinned-footer trap (see
+   * ScrollIntoViewOptions).
+   */
+  async scrollIntoView(options?: ScrollIntoViewOptions): Promise<void> {
+    await this.device.scrollIntoView(this, options);
   }
 
   /** Ensures a switch- or checkbox-like control is checked. */

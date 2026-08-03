@@ -99,6 +99,39 @@ export interface UiSnapshot {
   tree: AccessibilityTree;
 }
 
+export interface ScrollIntoViewOptions {
+  /** Maximum swipes before failing (default 6). */
+  maxSwipes?: number;
+  /**
+   * Points to treat as covered at the top of the viewport — a pinned
+   * header or nav bar. An element under it counts as not yet in view.
+   * Default 0.
+   */
+  topInset?: number;
+  /**
+   * Points to treat as covered at the bottom of the viewport. Being inside
+   * the screen is not the same as being tappable: a row can sit fully
+   * on-screen yet directly BEHIND a pinned footer, passing every plain
+   * on-screen check while every tap on it presses the footer instead.
+   * Default 0.
+   */
+  bottomInset?: number;
+  /** Points per swipe (default: a third of the viewport height). */
+  swipeDistance?: number;
+  /**
+   * Post-swipe inertia floor in milliseconds (default 250). Scroll
+   * inertia has no observable end condition, so this is a genuine wall
+   * sleep; the loop re-measures afterwards, which self-heals an unsettled
+   * scroll. `0` disables it.
+   */
+  settleMs?: number;
+  /**
+   * Viewport height override for trees whose root reports no frame; the
+   * root's own frame is used when available.
+   */
+  viewportHeight?: number;
+}
+
 const defaultTimeouts: DeviceTimeouts = {
   action: 3_000,
   assertion: 5_000,
@@ -390,6 +423,81 @@ export class Device {
   }
 
   /**
+   * Swipe until the element sits fully inside the viewport (minus the
+   * insets), in either vertical direction. See Locator.scrollIntoView for
+   * why presence in the tree is not the same as tappable.
+   */
+  async scrollIntoView(
+    locator: Locator,
+    options: ScrollIntoViewOptions = {},
+  ): Promise<void> {
+    if (!this.driver.swipe) {
+      throw new Error("The configured AXe driver does not support swipes.");
+    }
+    const maxSwipes = options.maxSwipes ?? 6;
+    const topInset = options.topInset ?? 0;
+    const bottomInset = options.bottomInset ?? 0;
+    const settleMs = options.settleMs ?? 250;
+
+    for (let swipes = 0; ; swipes++) {
+      const { tree } = await this.uiSnapshot();
+      const node = this.resolveTagged(locator, tree);
+      const frame = node.frame;
+      if (!frame) {
+        throw new LocatorResolutionError(
+          this.tagMessage(
+            `${locator.describe()} resolved to ${node.role}, but it has no frame to scroll to.`,
+          ),
+        );
+      }
+
+      const viewportTop = tree.root.frame?.y ?? 0;
+      const viewportHeight = options.viewportHeight ?? tree.root.frame?.height;
+      if (viewportHeight === undefined) {
+        throw new Error(
+          this.tagMessage(
+            "Cannot scroll: the tree's root reports no frame. Pass ScrollIntoViewOptions.viewportHeight.",
+          ),
+        );
+      }
+      const top = viewportTop + topInset;
+      const bottom = viewportTop + viewportHeight - bottomInset;
+      if (frame.y >= top && frame.y + frame.height <= bottom) return;
+
+      if (swipes >= maxSwipes) {
+        throw new LocatorTimeoutError(
+          this.tagMessage(
+            `${locator.describe()} was still outside the viewport after ${maxSwipes} ${maxSwipes === 1 ? "swipe" : "swipes"} (frame y=${frame.y}..${frame.y + frame.height}, viewport ${top}..${bottom}${bottomInset ? ` with bottomInset ${bottomInset}` : ""}).`,
+          ),
+        );
+      }
+
+      // Swipe in the element's own column — guaranteed to land inside the
+      // scroll container that holds it. Start points stay well off the
+      // screen edges (a bottom-edge drag is the home gesture) and off the
+      // insets (a pinned bar would eat the gesture).
+      const distance = options.swipeDistance ?? Math.round(viewportHeight / 3);
+      const x = frame.x + frame.width / 2;
+      const scrollUp = frame.y + frame.height > bottom;
+      const startY = scrollUp
+        ? Math.min(viewportTop + viewportHeight * 0.75, bottom - 24)
+        : Math.max(viewportTop + viewportHeight * 0.25, top + 24);
+      const endY = scrollUp
+        ? Math.max(startY - distance, top + 24)
+        : Math.min(startY + distance, bottom - 24);
+      await this.swipe(
+        { startX: x, startY, endX: x, endY, durationMs: 400 },
+        { command: "scroll-into-view" },
+      );
+      // FIXED FLOOR: scroll inertia has no observable end condition, and an
+      // early wake here (the event clock fires on every scroll frame) would
+      // re-measure a frame still in motion. The loop re-checks after, which
+      // self-heals an unsettled scroll on the next pass.
+      if (settleMs > 0) await this.wallSleep(settleMs);
+    }
+  }
+
+  /**
    * Runs an out-of-band operation inside the device's command queue and log,
    * so work that bypasses the typed surface (biometric triggers, app
    * lifecycle, raw driver calls) still serializes with queued commands and
@@ -520,6 +628,21 @@ export class Device {
     const snapshot: UiSnapshot = { raw, tree: normalizeAxeTree(raw) };
     this.cache = { snapshot, at: this.clock.now() };
     return snapshot;
+  }
+
+  /** Strict resolution against a held tree, with the device-name tag that
+   *  enqueued resolutions get from execute(). */
+  private resolveTagged(
+    locator: Locator,
+    tree: AccessibilityTree,
+  ): AccessibilityNode {
+    try {
+      return locator.resolveFrom(tree);
+    } catch (error) {
+      if (error instanceof Error)
+        error.message = this.tagMessage(error.message);
+      throw error;
+    }
   }
 
   private async tapOnce(locator: Locator, options: WaitOptions): Promise<void> {

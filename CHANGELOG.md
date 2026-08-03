@@ -118,6 +118,17 @@ known consumers), and the conventions are now documented in Agent.MD's
   must genuinely pass (system-UI settle windows, scroll-inertia floors)
   are correctness bugs when cut short, so they get their own API instead
   of the device clock.
+- `Locator.scrollIntoView(options)` — swipe (either vertical direction)
+  until the element sits fully inside the viewport, throwing when
+  `maxSwipes` isn't enough. Exists because an off-screen element is still
+  in the tree with a real frame: every locator reports it present, and a
+  tap resolves it and then presses a point past the screen edge with no
+  error. `topInset`/`bottomInset` reserve the strips pinned bars occupy —
+  a row can sit fully on-screen yet behind a pinned footer, where every
+  tap presses the footer instead. The viewport comes from the tree root's
+  frame (`viewportHeight` overrides); swipes run in the element's own
+  column, keep clear of the home-gesture screen edges, and settle behind
+  a real-time inertia floor (`settleMs`).
 
 ## 0.1.1
 
