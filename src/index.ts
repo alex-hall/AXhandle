@@ -25,6 +25,14 @@ export type {
   AxeServeDriverOptions,
   AxeServeProcess,
 } from "./axe-serve-driver.js";
+export { AxeEventCachedDriver } from "./axe-event-cached-driver.js";
+export type { AxeEventCachedDriverOptions } from "./axe-event-cached-driver.js";
+export { NotifyutilChangeSignal } from "./change-signal.js";
+export type {
+  NotifyutilChangeSignalOptions,
+  SignalWatcherProcess,
+  UiChangeSignal,
+} from "./change-signal.js";
 export { Device } from "./device.js";
 export type {
   DeviceCommandLogEntry,

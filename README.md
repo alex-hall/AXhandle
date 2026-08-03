@@ -318,8 +318,66 @@ const device = new Device("primary", driver, {
 });
 ```
 
-There is deliberately no sleep API. Wait on something observable; generous
-timeouts are free when the condition arrives early.
+There is deliberately no general sleep API. Wait on something observable;
+generous timeouts are free when the condition arrives early. The one
+exception is `device.wallSleep(ms)`, for floors that must genuinely elapse
+(a system-UI settle window invisible to `describe-ui`, a scroll-inertia
+floor) — always real time, never the device clock, which may end poll
+sleeps early ([Performance tuning](#performance-tuning)).
+
+## Performance tuning
+
+An accessibility dump costs real time — the classic CLI pays framework and
+session setup per invocation on top — so a suite's speed is mostly decided
+by how many dumps it runs and how it waits between them. Three levers, in
+the order to reach for them:
+
+**1. One process instead of one per command.** `AxeServeDriver` keeps a
+single long-lived `axe serve` session, eliminating the per-invocation
+setup cost. Requires an AXe build with the `serve` subcommand:
+
+```ts
+const driver = new AxeServeDriver({
+  udid,
+  fallback: new AxeCliDriver({ udid }),
+});
+```
+
+**2. Share back-to-back reads.** The built-in snapshot cache
+(`DeviceOptions.cacheWindowMs`) lets a check-then-tap or a multi-locator
+probe reuse one dump. It is bounded strictly below the poll interval and
+every action or wait-sleep invalidates it, so it can never mask a change a
+wait is polling for.
+
+**3. Dump when something happened, not once per interval.**
+`AxeEventCachedDriver` inverts the polling model: the app announces its UI
+changes, and dumps are served from cache until a change (or an
+interaction) lands. Waits also wake within milliseconds of a change —
+`Device` auto-wires the driver's `sleepUntilChange` capability into its
+poll clock — instead of sleeping out the interval.
+
+```ts
+const signal = new NotifyutilChangeSignal({
+  udid,
+  notification: "dev.example.ui.changed",
+});
+const driver = new AxeEventCachedDriver(baseDriver, { signal });
+const device = new Device("primary", driver);
+```
+
+The listening half is AXhandle's; the announcing half is yours: post the
+Darwin notification from the app on every UI change (on React Native, a
+Fabric mount-transaction observer is the natural spot; dev builds only).
+Notification names are per-simulator, so parallel devices never hear each
+other. Two safety valves cover what a beacon cannot see:
+`maxStalenessMs` (default 1500) bounds how long beacon-blind native UI —
+UIKit menus, the keyboard — can go unseen, and `minPollMs` (default 40)
+keeps a perpetually-animating screen from collapsing poll sleeps to zero
+and spinning at full dump speed.
+
+One rule comes with early-waking waits: pacing floors that must genuinely
+elapse go through `device.wallSleep(ms)`, never a raw wait on the device
+clock — an early wake there is a correctness bug, not a latency win.
 
 ## Screenshots and video
 

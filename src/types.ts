@@ -52,6 +52,15 @@ export interface AxeDriver {
   keyCombo(modifiers: readonly number[], key: number): Promise<void>;
   screenshot?(output: string): Promise<string>;
   /**
+   * Optional: a poll sleep that may end EARLY the moment the screen
+   * changes, resolving after `milliseconds` when nothing does. When
+   * present (and no explicit clock is configured), Device uses it for its
+   * wait loops — every one re-checks its condition on wake, so an early
+   * wake only re-checks sooner, and change-detection latency stops being
+   * bounded by the poll interval. See `AxeEventCachedDriver`.
+   */
+  sleepUntilChange?(milliseconds: number): Promise<void>;
+  /**
    * Release anything the driver holds open — long-lived helper processes
    * above all. Idempotent; the driver may not be used afterwards. Drivers
    * that hold nothing (one process per command) simply omit it.

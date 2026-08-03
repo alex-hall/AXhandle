@@ -131,10 +131,20 @@ export class Device {
     // sleep through this clock, so each iteration re-dumps even when its
     // per-call interval is shorter than the cache window.
     const base = options.clock ?? systemClock;
+    // A driver that can observe screen changes supplies the poll sleep:
+    // waits wake the moment a change lands instead of up to an interval
+    // later. Safe by construction here — every internal use of clock.sleep
+    // is a poll loop that re-checks its condition on wake. An explicit
+    // clock always wins (tests own time), and pacing floors that must
+    // genuinely elapse belong on wallSleep(), never this clock.
+    const pollSleep =
+      options.clock === undefined && driver.sleepUntilChange
+        ? driver.sleepUntilChange.bind(driver)
+        : (milliseconds: number) => base.sleep(milliseconds);
     this.clock = {
       now: () => base.now(),
       sleep: async (milliseconds) => {
-        await base.sleep(milliseconds);
+        await pollSleep(milliseconds);
         this.cache = undefined;
       },
     };
@@ -162,6 +172,18 @@ export class Device {
    * No-op when the tag is already present (wrapped errors fold earlier
    * messages in) or the device has no name.
    */
+  /**
+   * A sleep that always elapses in full, in real time — never the device
+   * clock, whose poll sleeps may end EARLY when the driver reports a
+   * screen change. Early waking is correct for poll loops (they re-check
+   * on wake) and a correctness bug for pacing floors: a system-UI settle
+   * window or animation floor that is cut short defeats its purpose. Use
+   * this for every wait that must genuinely pass.
+   */
+  wallSleep(milliseconds: number): Promise<void> {
+    return systemClock.sleep(milliseconds);
+  }
+
   tagMessage(message: string): string {
     const tag = `[${this.name}]`;
     return this.name.length === 0 || message.includes(tag)
