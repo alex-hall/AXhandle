@@ -88,6 +88,7 @@ creates. Actions are plain promises — no hidden command queue.
 | `type(text)`                                            | Tap the field, then send HID keystrokes                                                                                    |
 | `fill(text)`                                            | Replace field contents (select-all + type) and verify the result                                                           |
 | `check()` / `uncheck()`                                 | Read a switch's state, tap only if needed, verify                                                                          |
+| `scrollIntoView()`                                      | Swipe until the element is fully inside the viewport; insets for pinned bars ([details](#taps-that-get-swallowed))         |
 | `tapLabel(label)`                                       | Tap by label through AXe directly — reaches native alert buttons the tree never shows                                      |
 | `device.type(text)`                                     | HID keystrokes into whatever holds focus — no resolve, no tap; pairs with `tapLabel`/`tapPoint` flows                      |
 | `tapPoint(x, y)` / `longPress(x, y)` / `swipe(gesture)` | Raw coordinate gestures, logged and queued                                                                                 |
@@ -243,6 +244,28 @@ await device.findByLabel("Continue").tap({
 
 (`click()` from 0.1.x still works as a deprecated alias — it's removed in
 1.0. iOS has taps, not clicks.)
+
+The other silent tap failure is scrolling. An element below the fold is
+still in the accessibility tree with a real frame, so every locator
+reports it present — and a tap resolves it, then taps a point past the
+edge of the screen. Nothing errors; the press lands on whatever the OS
+clamps it to. Scroll first:
+
+```ts
+await device.findByLabel("Delete account").scrollIntoView();
+await device.findByLabel("Delete account").tap();
+```
+
+`scrollIntoView()` swipes (either direction) until the element sits fully
+inside the viewport, and throws when `maxSwipes` isn't enough. Being
+on-screen is not the same as being tappable: a row can sit fully inside
+the screen yet directly behind a pinned footer, passing every plain
+on-screen check while every tap presses the footer instead —
+`bottomInset` (and `topInset` for pinned headers) reserves that strip:
+
+```ts
+await device.findByLabel("Last row").scrollIntoView({ bottomInset: 96 }); // the pinned "Next" bar
+```
 
 ## Things the accessibility tree can't see
 
