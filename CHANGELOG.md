@@ -95,6 +95,29 @@ known consumers), and the conventions are now documented in Agent.MD's
 - `XcrunSimulatorController.openUrl(udid, url)` — deep links per device.
   Unlike the pasteboard (one host-wide resource every simulator shares),
   `simctl openurl` cannot cross-talk between parallel suites.
+- Event-invalidated snapshot caching: `AxeEventCachedDriver` serves
+  `describe-ui` from cache until the app announces a UI change (or a
+  driver interaction lands), instead of re-dumping once per poll interval.
+  The announcing side is consumer-owned and pluggable via the
+  `UiChangeSignal` interface; `NotifyutilChangeSignal` is the reference
+  implementation — one persistent `simctl spawn <udid> notifyutil -w`
+  watcher on a configurable Darwin notification name, lazily restarted if
+  a simulator reboot kills it. Safety valves: `maxStalenessMs` bounds how
+  long beacon-blind native UI (UIKit menus, the keyboard) can go unseen;
+  `minPollMs` keeps a perpetually-animating screen from collapsing poll
+  sleeps to zero and spinning at full dump speed.
+- `AxeDriver.sleepUntilChange?(ms)` — an optional driver capability for
+  poll sleeps that end early the moment the screen changes. When a driver
+  provides it and no explicit clock is configured, `Device` wires it into
+  its poll clock automatically: waits re-check within milliseconds of a
+  real change instead of up to a full interval later. Safe by
+  construction — every internal clock sleep is a poll loop that re-checks
+  its condition on wake.
+- `Device.wallSleep(ms)` — a sleep that always elapses in full, in real
+  time. The companion rule to early-waking poll sleeps: pacing floors that
+  must genuinely pass (system-UI settle windows, scroll-inertia floors)
+  are correctness bugs when cut short, so they get their own API instead
+  of the device clock.
 
 ## 0.1.1
 
