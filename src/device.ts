@@ -153,6 +153,22 @@ export class Device {
     this.driver.dispose?.();
   }
 
+  /**
+   * Suffix a failure message with this device's name. Multi-device suites
+   * raise identical-looking errors from every actor; the tag is what tells
+   * a reader which simulator failed. Every error thrown through the device
+   * queue or a locator wait is tagged automatically — this is public for
+   * consumer-built helpers that throw their own errors about this device.
+   * No-op when the tag is already present (wrapped errors fold earlier
+   * messages in) or the device has no name.
+   */
+  tagMessage(message: string): string {
+    const tag = `[${this.name}]`;
+    return this.name.length === 0 || message.includes(tag)
+      ? message
+      : `${message} ${tag}`;
+  }
+
   findByTestId(value: string): Locator {
     return Locator.from(this, { kind: "testId", value });
   }
@@ -275,7 +291,9 @@ export class Device {
     }
 
     throw new LocatorTimeoutError(
-      `Tapped ${locator.describe()} ${attempts} times, but ${until.describe()} never appeared.`,
+      this.tagMessage(
+        `Tapped ${locator.describe()} ${attempts} times, but ${until.describe()} never appeared.`,
+      ),
     );
   }
 
@@ -364,6 +382,16 @@ export class Device {
     operation: () => Promise<T>,
   ): Promise<T> {
     return this.enqueue(command, operation);
+  }
+
+  /**
+   * HID-types into whatever currently holds focus, resolving nothing. The
+   * fast path when the previous action just focused the field (a tapLabel,
+   * a coordinate tap on an AX-invisible target) — typeInto() would pay a
+   * tree resolve and a second tap for a focus the flow already owns.
+   */
+  async type(text: string): Promise<void> {
+    await this.enqueue("type", () => this.driver.type(text));
   }
 
   async typeInto(
@@ -584,6 +612,9 @@ export class Device {
       });
       return result;
     } catch (error) {
+      // Tag before logging so the log row and the thrown error agree.
+      if (error instanceof Error)
+        error.message = this.tagMessage(error.message);
       this.log.push({
         sequence,
         command,

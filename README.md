@@ -72,13 +72,13 @@ creates. Actions are plain promises — no hidden command queue.
 
 **Finding elements**
 
-| API                                        | What it does                                                                                          |
-| ------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
-| `findByRole("button", { name: "Send" })`   | Match by accessibility role and name — the selector a person would use                                |
-| `findByText(value)` / `findByLabel(value)` | Match visible text or accessibility label; `{ exact: false }` for case-insensitive substring matching |
-| `findByTestId(value)`                      | Match a `testID` / accessibility identifier                                                           |
-| `.first()` / `.second()` / `.nth(i)`       | Choose among duplicate matches explicitly                                                             |
-| `parent.findBy…(…)`                        | Scope a query inside a previous match                                                                 |
+| API                                              | What it does                                                                                              |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| `findByRole("button", { name: "Send" })`         | Match by accessibility role and name — the selector a person would use                                    |
+| `findByText(value)` / `findByLabel(value)`       | Match visible text or accessibility label; `{ exact: false }` for case-insensitive substring matching     |
+| `findByTestId(value)`                            | Match a `testID` / accessibility identifier                                                               |
+| `.first()` / `.second()` / `.nth(i)` / `.last()` | Choose among duplicate matches explicitly; `last()` takes the final match — the topmost of stacked sheets |
+| `parent.findBy…(…)`                              | Scope a query inside a previous match                                                                     |
 
 **Acting on them**
 
@@ -89,6 +89,7 @@ creates. Actions are plain promises — no hidden command queue.
 | `fill(text)`                                            | Replace field contents (select-all + type) and verify the result                                                           |
 | `check()` / `uncheck()`                                 | Read a switch's state, tap only if needed, verify                                                                          |
 | `tapLabel(label)`                                       | Tap by label through AXe directly — reaches native alert buttons the tree never shows                                      |
+| `device.type(text)`                                     | HID keystrokes into whatever holds focus — no resolve, no tap; pairs with `tapLabel`/`tapPoint` flows                      |
 | `tapPoint(x, y)` / `longPress(x, y)` / `swipe(gesture)` | Raw coordinate gestures, logged and queued                                                                                 |
 | `screenshot(path)`                                      | PNG of the current screen                                                                                                  |
 
@@ -100,6 +101,7 @@ creates. Actions are plain promises — no hidden command queue.
 | `waitForVisible()` / `waitFor(predicate)`            | Poll until the (single) element satisfies a condition                                                                     |
 | `isPresent()` / `waitForPresent()` / `waitForGone()` | Non-strict presence: "is anything matching on screen?"                                                                    |
 | `firstPresent(...locators)`                          | Which of these screens am I on? One tree fetch answers                                                                    |
+| `label()` / `value()` / `frame()`                    | Strict attribute reads from the one resolved element — for content that exists to be read, and position assertions        |
 | `presentNodes()` / `matchesIn(tree)`                 | Read the matching nodes themselves; evaluate many locators against one snapshot                                           |
 | `poll(condition, options)`                           | The bare polling loop, exported for your own waits                                                                        |
 
@@ -446,7 +448,10 @@ Two pieces of simulator state survive app uninstall and quietly break
   flow. `resetKeychain(udid)` before a fresh install.
 - **The pasteboard.** Apps that inspect the clipboard on first focus
   (deferred-deeplink detection) will act on whatever a previous test left
-  there. `setPasteboard(udid, "…")` to neutralize it.
+  there. `setPasteboard(udid, "…")` to neutralize it. And don't use it to
+  hand links to the app under test — the pasteboard is one host-wide
+  resource every simulator shares, so parallel suites clobber each other.
+  `openUrl(udid, url)` delivers a deep link to exactly one device.
 
 For Face ID / Touch ID, `simctl` has no biometric command.
 `NotifyutilBiometricController` posts the same Darwin notifications

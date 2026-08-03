@@ -90,13 +90,11 @@ describe("tap({ until })", () => {
     const device = new Device("primary", driver, { clock: fakeClock() });
 
     await expect(
-      device
-        .findByLabel("Continue")
-        .tap({
-          until: device.findByLabel("Welcome"),
-          attempts: 2,
-          settleTimeout: 300,
-        }),
+      device.findByLabel("Continue").tap({
+        until: device.findByLabel("Welcome"),
+        attempts: 2,
+        settleTimeout: 300,
+      }),
     ).rejects.toThrow(/Tapped .* 2 times, but .* never appeared/);
     expect(driver.taps).toBe(2);
   });
@@ -226,12 +224,31 @@ describe("device-level driver actions", () => {
       this.swipes.push(gesture);
     }
 
-    async type(_text: string): Promise<void> {}
+    readonly typed: string[] = [];
+
+    async type(text: string): Promise<void> {
+      this.typed.push(text);
+    }
+
     async keyCombo(
       _modifiers: readonly number[],
       _key: number,
     ): Promise<void> {}
   }
+
+  it("types into the current focus without resolving any element", async () => {
+    const driver = new RecordingDriver();
+    const device = new Device("primary", driver);
+
+    await device.type("123456");
+
+    expect(driver.typed).toEqual(["123456"]);
+    // No focusing tap happened — the flow already owns the focus.
+    expect(driver.tapTargets).toEqual([]);
+    expect(device.commandLog()).toContainEqual(
+      expect.objectContaining({ command: "type", status: "passed" }),
+    );
+  });
 
   it("taps coordinates through the queue and log", async () => {
     const driver = new RecordingDriver();
@@ -322,7 +339,8 @@ describe("recordAction and log windowing", () => {
       expect.objectContaining({
         command: "app.launch",
         status: "failed",
-        error: "boot failed",
+        // Failures are tagged with the device name, log row included.
+        error: "boot failed [primary]",
       }),
     );
   });
@@ -520,5 +538,61 @@ describe("matchesIn strictness", () => {
     expect(saved.findByText("anything").matchesIn(tree)).toEqual([]);
     // The 0.1.x-era alias keeps strict behavior until 1.0.
     expect(saved.matchesFrom(tree)).toHaveLength(2);
+  });
+});
+
+describe("device-name error tagging", () => {
+  const emptyScreen = () =>
+    new FixtureAxeDriver({ role_description: "application", children: [] });
+
+  it("suffixes wait timeouts with the device name for multi-device suites", async () => {
+    const device = new Device("alice-sim", emptyScreen(), {
+      clock: fakeClock(),
+      timeouts: { assertion: 500, interval: 100 },
+    });
+
+    await expect(
+      device.findByLabel("Missing").waitForPresent(),
+    ).rejects.toThrow("never appeared within 500ms. [alice-sim]");
+    await expect(device.findByLabel("Missing").waitForCount(1)).rejects.toThrow(
+      "[alice-sim]",
+    );
+  });
+
+  it("tags queued command failures and their log rows alike", async () => {
+    const device = new Device("bob-sim", emptyScreen(), {
+      clock: fakeClock(),
+      timeouts: { action: 300, interval: 100 },
+    });
+
+    await expect(device.findByLabel("Missing").resolve()).rejects.toThrow(
+      "[bob-sim]",
+    );
+    expect(device.commandLog()).toContainEqual(
+      expect.objectContaining({
+        command: "inspect",
+        status: "failed",
+        error: expect.stringContaining("[bob-sim]"),
+      }),
+    );
+  });
+
+  it("never doubles the tag when a tagged error is folded into a wait", async () => {
+    const device = new Device("carol-sim", emptyScreen(), {
+      clock: fakeClock(),
+      timeouts: { assertion: 500, interval: 100 },
+    });
+
+    // waitFor() folds the (already tagged) resolution error into its own
+    // timeout message; the tag must appear exactly once.
+    const error = await device
+      .findByLabel("Missing")
+      .waitFor(() => true)
+      .then(
+        () => undefined,
+        (thrown: unknown) => thrown as Error,
+      );
+
+    expect(error?.message.match(/\[carol-sim\]/g)).toHaveLength(1);
   });
 });
