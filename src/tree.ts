@@ -12,7 +12,9 @@ const firstString = (...values: unknown[]): string | undefined => {
   return undefined;
 };
 
-const firstValue = (...values: unknown[]): string | number | boolean | undefined => {
+const firstValue = (
+  ...values: unknown[]
+): string | number | boolean | undefined => {
   for (const value of values) {
     if (
       typeof value === "string" ||
@@ -34,7 +36,9 @@ const firstBoolean = (...values: unknown[]): boolean | undefined => {
 
 const numberAt = (record: JsonRecord, key: string): number | undefined => {
   const value = record[key];
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : undefined;
 };
 
 const normalizeFrame = (value: unknown): Frame | undefined => {
@@ -45,7 +49,12 @@ const normalizeFrame = (value: unknown): Frame | undefined => {
   const width = numberAt(value, "width");
   const height = numberAt(value, "height");
 
-  if (x === undefined || y === undefined || width === undefined || height === undefined) {
+  if (
+    x === undefined ||
+    y === undefined ||
+    width === undefined ||
+    height === undefined
+  ) {
     return undefined;
   }
 
@@ -55,6 +64,19 @@ const normalizeFrame = (value: unknown): Frame | undefined => {
 const childValues = (record: JsonRecord): unknown[] => {
   const value = record["AXChildren"] ?? record["children"];
   return Array.isArray(value) ? value : [];
+};
+
+const unionFrame = (nodes: readonly AccessibilityNode[]): Frame | undefined => {
+  const frames = nodes
+    .map((node) => node.frame)
+    .filter((frame): frame is Frame => frame !== undefined);
+  if (frames.length === 0) return undefined;
+
+  const left = Math.min(...frames.map((frame) => frame.x));
+  const top = Math.min(...frames.map((frame) => frame.y));
+  const right = Math.max(...frames.map((frame) => frame.x + frame.width));
+  const bottom = Math.max(...frames.map((frame) => frame.y + frame.height));
+  return { x: left, y: top, width: right - left, height: bottom - top };
 };
 
 /**
@@ -70,14 +92,22 @@ export function normalizeAxeNode(raw: unknown): AccessibilityNode {
     // AXe currently exposes both a low-level role (for example `AXButton`)
     // and the user-facing accessibility role (`button`). Prefer the latter so
     // locator roles remain stable and match iOS accessibility terminology.
-    role: (firstString(raw["role_description"], raw["AXRole"], raw["role"], raw["type"]) ?? "Unknown").toLowerCase(),
+    role: (
+      firstString(
+        raw["role_description"],
+        raw["AXRole"],
+        raw["role"],
+        raw["type"],
+      ) ?? "Unknown"
+    ).toLowerCase(),
     id: firstString(raw["AXUniqueId"], raw["AXIdentifier"], raw["id"]),
     label: firstString(raw["AXLabel"], raw["label"], raw["name"]),
     value: firstValue(raw["AXValue"], raw["value"]),
     enabled: firstBoolean(raw["AXEnabled"], raw["enabled"]),
-    visible: firstBoolean(raw["AXVisible"], raw["visible"], raw["isVisible"]) ?? true,
+    visible:
+      firstBoolean(raw["AXVisible"], raw["visible"], raw["isVisible"]) ?? true,
     frame: normalizeFrame(raw["frame"] ?? raw["AXFrame"]),
-    children: []
+    children: [],
   };
 
   node.children = childValues(raw)
@@ -95,7 +125,7 @@ export function normalizeAxeNode(raw: unknown): AccessibilityNode {
  */
 const isRedundantAccessibilityWrapper = (
   parent: AccessibilityNode,
-  child: AccessibilityNode
+  child: AccessibilityNode,
 ): boolean =>
   child.id === undefined &&
   child.children.length === 0 &&
@@ -107,7 +137,10 @@ const isRedundantAccessibilityWrapper = (
   parent.visible === child.visible &&
   framesEqual(parent.frame, child.frame);
 
-const framesEqual = (left: Frame | undefined, right: Frame | undefined): boolean =>
+const framesEqual = (
+  left: Frame | undefined,
+  right: Frame | undefined,
+): boolean =>
   left?.x === right?.x &&
   left?.y === right?.y &&
   left?.width === right?.width &&
@@ -115,12 +148,20 @@ const framesEqual = (left: Frame | undefined, right: Frame | undefined): boolean
 
 export function normalizeAxeTree(raw: unknown): AccessibilityTree {
   if (Array.isArray(raw)) {
+    // AXe's describe-ui returns an ARRAY of top-level elements. The
+    // synthetic root that wraps them represents the screen, so its frame
+    // is the union of its children's frames — consumers (viewport math
+    // above all) need the root to have real extent, and on device the
+    // top-level application elements are full-screen.
+    const children = raw.map(normalizeAxeNode);
+    const frame = unionFrame(children);
     return {
       root: {
         role: "Application",
         visible: true,
-        children: raw.map(normalizeAxeNode)
-      }
+        ...(frame ? { frame } : {}),
+        children,
+      },
     };
   }
 
@@ -134,7 +175,7 @@ export function normalizeAxeTree(raw: unknown): AccessibilityTree {
 
 export function descendants(
   root: AccessibilityNode,
-  includeRoot = true
+  includeRoot = true,
 ): AccessibilityNode[] {
   const result: AccessibilityNode[] = [];
   const visit = (node: AccessibilityNode) => {
@@ -151,13 +192,14 @@ export function nodeDescription(node: AccessibilityNode): string {
   const details = [node.role];
   if (node.id) details.push(`id=${JSON.stringify(node.id)}`);
   if (node.label) details.push(`label=${JSON.stringify(node.label)}`);
-  if (node.value !== undefined) details.push(`value=${JSON.stringify(node.value)}`);
+  if (node.value !== undefined)
+    details.push(`value=${JSON.stringify(node.value)}`);
   return details.join(" ");
 }
 
 export function accessibilityPath(
   root: AccessibilityNode,
-  target: AccessibilityNode
+  target: AccessibilityNode,
 ): string | undefined {
   const path: AccessibilityNode[] = [];
 

@@ -165,6 +165,11 @@ export class Locator {
    * to. Scroll first; the viewport comes from the tree root's frame, and
    * `bottomInset` handles the row-behind-a-pinned-footer trap (see
    * ScrollIntoViewOptions).
+   *
+   * The element must already be IN the tree (strict resolution, like every
+   * interaction). Virtualized lists — SwiftUI's List, RN's FlatList —
+   * materialize rows lazily, so a deep row may not exist anywhere in the
+   * tree yet; swipe until it is present first, then scroll it into view.
    */
   async scrollIntoView(options?: ScrollIntoViewOptions): Promise<void> {
     await this.device.scrollIntoView(this, options);

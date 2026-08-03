@@ -164,6 +164,33 @@ describe("scrollIntoView", () => {
     ).rejects.toThrow("[primary]");
   });
 
+  it("derives the viewport when AXe returns an array of top-level elements", async () => {
+    // Real describe-ui output is an ARRAY; the synthesized root's frame is
+    // the union of the top-level frames, so viewport math works without
+    // options. The row at y=900 is outside the 800pt union, and the error
+    // proves the viewport was derived (not the no-frame failure).
+    const arrayForm = swipeableFixture([
+      {
+        role_description: "application",
+        frame: { x: 0, y: 0, width: 400, height: 800 },
+        children: [
+          {
+            role_description: "button",
+            AXLabel: "Row",
+            frame: { x: 0, y: 900, width: 400, height: 40 },
+            children: [],
+          },
+        ],
+      },
+    ]);
+
+    await expect(
+      deviceFor(arrayForm)
+        .findByLabel("Row")
+        .scrollIntoView({ settleMs: 0, maxSwipes: 1 }),
+    ).rejects.toThrow("viewport 0..800");
+  });
+
   it("requires a viewport: root frame or an explicit height", async () => {
     const noRootFrame = () =>
       swipeableFixture({
