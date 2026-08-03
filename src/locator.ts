@@ -328,7 +328,9 @@ export class Locator {
     tree: AccessibilityTree,
     options: { strict?: boolean } = {},
   ): AccessibilityNode[] {
-    return options.strict ? this.strictMatches(tree) : this.presentMatches(tree);
+    return options.strict
+      ? this.strictMatches(tree)
+      : this.presentMatches(tree);
   }
 
   /** @deprecated Use {@link matchesIn} with `{ strict: true }`. Removed in 1.0. */

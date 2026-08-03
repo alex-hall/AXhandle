@@ -15,7 +15,7 @@ export interface SimulatorCommandRunnerOptions {
 export interface SimulatorCommandRunner {
   run(
     args: readonly string[],
-    options?: SimulatorCommandRunnerOptions
+    options?: SimulatorCommandRunnerOptions,
   ): Promise<SimulatorCommandResult>;
 }
 
@@ -23,9 +23,12 @@ export class SimulatorCommandError extends Error {
   constructor(
     readonly args: readonly string[],
     readonly stderr: string,
-    cause?: unknown
+    cause?: unknown,
   ) {
-    super(`Simulator command failed: xcrun simctl ${args.join(" ")}\n${stderr}`.trim(), { cause });
+    super(
+      `Simulator command failed: xcrun simctl ${args.join(" ")}\n${stderr}`.trim(),
+      { cause },
+    );
     this.name = "SimulatorCommandError";
   }
 }
@@ -36,17 +39,21 @@ export class NodeSimulatorCommandRunner implements SimulatorCommandRunner {
 
   async run(
     args: readonly string[],
-    options: SimulatorCommandRunnerOptions = {}
+    options: SimulatorCommandRunnerOptions = {},
   ): Promise<SimulatorCommandResult> {
     try {
       const execOptions = {
         encoding: "utf8",
         env: { ...process.env, ...options.environment },
-        maxBuffer: 10 * 1024 * 1024
+        maxBuffer: 10 * 1024 * 1024,
       } as const;
 
       if (options.input === undefined) {
-        const result = await this.execute("xcrun", ["simctl", ...args], execOptions);
+        const result = await this.execute(
+          "xcrun",
+          ["simctl", ...args],
+          execOptions,
+        );
         return { stdout: String(result.stdout), stderr: String(result.stderr) };
       }
 
@@ -60,13 +67,17 @@ export class NodeSimulatorCommandRunner implements SimulatorCommandRunner {
           (error, stdout, stderr) => {
             if (error) reject(Object.assign(error, { stderr }));
             else resolve({ stdout: String(stdout), stderr: String(stderr) });
-          }
+          },
         );
         child.stdin?.end(input);
       });
     } catch (error) {
       const failure = error as { stderr?: string | Buffer };
-      throw new SimulatorCommandError(args, String(failure.stderr ?? ""), error);
+      throw new SimulatorCommandError(
+        args,
+        String(failure.stderr ?? ""),
+        error,
+      );
     }
   }
 }
@@ -89,22 +100,36 @@ export interface SimulatorController {
   appContainerPath(
     udid: string,
     bundleId: string,
-    container?: "app" | "data" | "groups"
+    container?: "app" | "data" | "groups",
   ): Promise<string | undefined>;
   isAppInstalled(udid: string, bundleId: string): Promise<boolean>;
   resetKeychain(udid: string): Promise<void>;
   setPasteboard(udid: string, text: string): Promise<void>;
   getPasteboard(udid: string): Promise<string>;
-  grantPermission(udid: string, service: string, bundleId: string): Promise<void>;
-  revokePermission(udid: string, service: string, bundleId: string): Promise<void>;
-  resetPermissions(udid: string, service?: string, bundleId?: string): Promise<void>;
+  grantPermission(
+    udid: string,
+    service: string,
+    bundleId: string,
+  ): Promise<void>;
+  revokePermission(
+    udid: string,
+    service: string,
+    bundleId: string,
+  ): Promise<void>;
+  resetPermissions(
+    udid: string,
+    service?: string,
+    bundleId?: string,
+  ): Promise<void>;
 }
 
 /** Optional Xcode integration; core Device and AXe driver never call it. */
 export class XcrunSimulatorController implements SimulatorController {
   private readonly runner: SimulatorCommandRunner;
 
-  constructor(runner: SimulatorCommandRunner = new NodeSimulatorCommandRunner()) {
+  constructor(
+    runner: SimulatorCommandRunner = new NodeSimulatorCommandRunner(),
+  ) {
     this.runner = runner;
   }
 
@@ -121,7 +146,7 @@ export class XcrunSimulatorController implements SimulatorController {
     if (options.terminateRunning) args.push("--terminate-running-process");
     args.push(options.udid, options.bundleId, ...(options.arguments ?? []));
     const { stdout } = await this.runner.run(args, {
-      environment: childEnvironment(options.environment)
+      environment: childEnvironment(options.environment),
     });
     return { pid: parseLaunchPid(stdout) };
   }
@@ -138,10 +163,15 @@ export class XcrunSimulatorController implements SimulatorController {
   async appContainerPath(
     udid: string,
     bundleId: string,
-    container: "app" | "data" | "groups" = "app"
+    container: "app" | "data" | "groups" = "app",
   ): Promise<string | undefined> {
     try {
-      const { stdout } = await this.runner.run(["get_app_container", udid, bundleId, container]);
+      const { stdout } = await this.runner.run([
+        "get_app_container",
+        udid,
+        bundleId,
+        container,
+      ]);
       const containerPath = stdout.trim();
       return containerPath.length > 0 ? containerPath : undefined;
     } catch (error) {
@@ -180,21 +210,33 @@ export class XcrunSimulatorController implements SimulatorController {
     return stdout;
   }
 
-  async grantPermission(udid: string, service: string, bundleId: string): Promise<void> {
+  async grantPermission(
+    udid: string,
+    service: string,
+    bundleId: string,
+  ): Promise<void> {
     await this.runner.run(["privacy", udid, "grant", service, bundleId]);
   }
 
-  async revokePermission(udid: string, service: string, bundleId: string): Promise<void> {
+  async revokePermission(
+    udid: string,
+    service: string,
+    bundleId: string,
+  ): Promise<void> {
     await this.runner.run(["privacy", udid, "revoke", service, bundleId]);
   }
 
-  async resetPermissions(udid: string, service = "all", bundleId?: string): Promise<void> {
+  async resetPermissions(
+    udid: string,
+    service = "all",
+    bundleId?: string,
+  ): Promise<void> {
     await this.runner.run([
       "privacy",
       udid,
       "reset",
       service,
-      ...(bundleId === undefined ? [] : [bundleId])
+      ...(bundleId === undefined ? [] : [bundleId]),
     ]);
   }
 }
@@ -230,7 +272,7 @@ export class UnsupportedBiometricController implements BiometricController {
 
 const unsupportedBiometricError = (): Error =>
   new Error(
-    "Biometric simulation is not available through the configured simulator controller. Inject a verified BiometricController implementation."
+    "Biometric simulation is not available through the configured simulator controller. Inject a verified BiometricController implementation.",
   );
 
 /**
@@ -250,7 +292,7 @@ const unsupportedBiometricError = (): Error =>
  */
 export class NotifyutilBiometricController implements BiometricController {
   constructor(
-    private readonly runner: SimulatorCommandRunner = new NodeSimulatorCommandRunner()
+    private readonly runner: SimulatorCommandRunner = new NodeSimulatorCommandRunner(),
   ) {}
 
   /** Enroll a simulated face/fingerprint. Idempotent; required before any match. */
@@ -269,25 +311,44 @@ export class NotifyutilBiometricController implements BiometricController {
 
   /** Reject the currently-presented biometric prompt (non-matching face). */
   async nonMatch(udid: string): Promise<void> {
-    await this.notifyutil(udid, "-p", "com.apple.BiometricKit_Sim.pearl.nomatch");
+    await this.notifyutil(
+      udid,
+      "-p",
+      "com.apple.BiometricKit_Sim.pearl.nomatch",
+    );
   }
 
   private async setEnrollment(udid: string, enrolled: boolean): Promise<void> {
-    await this.notifyutil(udid, "-s", "com.apple.BiometricKit.enrollmentChanged", enrolled ? "1" : "0");
-    await this.notifyutil(udid, "-p", "com.apple.BiometricKit.enrollmentChanged");
+    await this.notifyutil(
+      udid,
+      "-s",
+      "com.apple.BiometricKit.enrollmentChanged",
+      enrolled ? "1" : "0",
+    );
+    await this.notifyutil(
+      udid,
+      "-p",
+      "com.apple.BiometricKit.enrollmentChanged",
+    );
   }
 
-  private notifyutil(udid: string, ...args: string[]): Promise<SimulatorCommandResult> {
+  private notifyutil(
+    udid: string,
+    ...args: string[]
+  ): Promise<SimulatorCommandResult> {
     return this.runner.run(["spawn", udid, "notifyutil", ...args]);
   }
 }
 
 const childEnvironment = (
-  environment: Readonly<Record<string, string>> | undefined
+  environment: Readonly<Record<string, string>> | undefined,
 ): Record<string, string> | undefined =>
   environment &&
   Object.fromEntries(
-    Object.entries(environment).map(([key, value]) => [`SIMCTL_CHILD_${key}`, value])
+    Object.entries(environment).map(([key, value]) => [
+      `SIMCTL_CHILD_${key}`,
+      value,
+    ]),
   );
 
 const parseLaunchPid = (stdout: string): number | undefined => {
