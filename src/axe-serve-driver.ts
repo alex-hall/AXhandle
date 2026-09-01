@@ -21,7 +21,11 @@ export interface AxeServeProcess {
 
 export interface AxeServeDriverOptions {
   udid: string;
-  /** An AXe binary built with `serve` support. Default: `axe`. */
+  /**
+   * An AXe binary built with `serve` support. Default: `axe` from PATH.
+   * The stock Homebrew AXe has no `serve` subcommand; the serve-capable
+   * build is a tap away: `brew install alex-hall/axe/axe`.
+   */
   binary?: string;
   /**
    * Per-command response deadline. A command that gets no response line
@@ -43,6 +47,15 @@ export interface AxeServeDriverOptions {
 }
 
 const DEFAULT_TIMEOUT_MS = 30_000;
+
+/**
+ * Appended to a failed handshake. The stock Homebrew AXe answers `serve`
+ * with its usage text (no such subcommand) and exits, which surfaces here as
+ * a non-JSON first line or a process that died during startup — the message
+ * should say what to install, not only what was read.
+ */
+const NO_SERVE_HINT =
+  " — if this AXe has no `serve` subcommand, install the serve-capable build: brew install alex-hall/axe/axe";
 
 /**
  * An AxeDriver over one long-lived `axe serve` process instead of one CLI
@@ -201,7 +214,7 @@ export class AxeServeDriver implements AxeDriver {
     if (!child) {
       throw new AxeCommandError(
         args,
-        "serve process died during startup",
+        `serve process died during startup${NO_SERVE_HINT}`,
         undefined,
         this.binary,
       );
@@ -325,7 +338,7 @@ export class AxeServeDriver implements AxeDriver {
           reject(
             new AxeCommandError(
               handshakeArgs,
-              `serve never became ready: ${line.slice(0, 500)}`,
+              `serve never became ready: ${line.slice(0, 500)}${NO_SERVE_HINT}`,
               error,
               this.binary,
             ),

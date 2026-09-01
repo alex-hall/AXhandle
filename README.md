@@ -43,7 +43,7 @@ the Apple tooling a simulator suite ends up needing anyway:
 AXhandle runs on macOS and talks to the simulator through the AXe CLI:
 
 ```sh
-brew install cameroncooke/axe/axe    # AXe CLI on PATH
+brew install cameroncooke/axe/axe    # AXe CLI on PATH (or alex-hall/axe/axe for `axe serve`, below)
 npm install --save-dev axhandle vitest
 ```
 
@@ -358,7 +358,20 @@ the order to reach for them:
 
 **1. One process instead of one per command.** `AxeServeDriver` keeps a
 single long-lived `axe serve` session, eliminating the per-invocation
-setup cost. Requires an AXe build with the `serve` subcommand:
+setup cost. Requires an AXe build with the `serve` subcommand, which the
+stock Homebrew AXe does not have yet. The serve-capable fork is a tap that
+tracks upstream on its own (it rebases onto each upstream release weekly
+and ships a `-serve.N` prerelease; the tap regenerates its formula from
+that):
+
+```
+brew untap cameroncooke/axe 2>/dev/null; brew uninstall axe 2>/dev/null
+brew install alex-hall/axe/axe
+axe serve --help
+```
+
+The driver looks for `axe` on PATH; pass `binary` to point it elsewhere. A
+stock binary fails the handshake with a message that says so.
 
 ```ts
 const driver = new AxeServeDriver({
