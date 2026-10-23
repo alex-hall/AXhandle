@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect } from "vitest";
-import { AxeCliDriver, Device } from "../../src/index.js";
+import { Device } from "../../src/index.js";
 import { axeMatchers, createAxeTest } from "../../src/vitest.js";
+import { e2eDriver } from "../support/e2e-driver.js";
 import { startLocalRelay } from "../support/local-relay.js";
 import type { LocalRelay } from "../support/local-relay.js";
 
@@ -23,8 +24,8 @@ describe.skipIf(!enabled)("React Native multi-device AXe e2e", () => {
   const test = createAxeTest({
     deviceProvider: {
       allocate: () => ({
-        alice: new Device("alice", new AxeCliDriver({ udid: aliceUdid! })),
-        bob: new Device("bob", new AxeCliDriver({ udid: bobUdid! }))
+        alice: new Device("alice", e2eDriver(aliceUdid!)),
+        bob: new Device("bob", e2eDriver(bobUdid!))
       })
     },
     beforeTest: async () => {

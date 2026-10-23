@@ -1,4 +1,22 @@
 export {
+  AdbCommandError,
+  AdbDeviceController,
+  AndroidUnsupportedError,
+  androidPermissions,
+  defaultAdbPath,
+  EmulatorBiometricController,
+  NodeAdbCommandRunner,
+} from "./android-control.js";
+export type {
+  AdbCommandResult,
+  AdbCommandRunner,
+  EmulatorBiometricControllerOptions,
+} from "./android-control.js";
+export { AdbScreenRecorder } from "./adb-video.js";
+export type { AdbScreenRecorderOptions } from "./adb-video.js";
+export { AdzeChangeSignal } from "./adze-change-signal.js";
+export type { AdzeChangeSignalOptions } from "./adze-change-signal.js";
+export {
   AxeCliDriver,
   AxeCommandError,
   AxeCommandTimeoutError,

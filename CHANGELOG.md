@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### Android emulators
+
+- `AdbDeviceController`, `EmulatorBiometricController` and
+  `AdbScreenRecorder`: the Android counterparts of the simulator controller,
+  Face ID controller and video recorder, through adb.
+- `AdzeChangeSignal`: screen-change events from the adze driver, for
+  `AxeEventCachedDriver`, with nothing added to the app.
+- The React Native sample app has an Android project, and the React Native
+  e2e tests take their driver from the environment (`AXE_E2E_BINARY`,
+  `AXE_E2E_SERVE`, `AXE_E2E_EVENTS`), so one suite runs on simulators and
+  emulators. The sample keeps its message field above the keyboard on
+  Android 15 and closes the keyboard after sending.
+
 ### Breaking (0.2.0 API, unadopted)
 
 Nomenclature alignment before these names gathered consumers. 0.2.0

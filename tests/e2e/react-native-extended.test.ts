@@ -1,5 +1,6 @@
 import { describe, expect } from "vitest";
-import { AxeCliDriver, Device } from "../../src/index.js";
+import { Device } from "../../src/index.js";
+import { e2eDriver } from "../support/e2e-driver.js";
 import { axeMatchers, createAxeTest } from "../../src/vitest.js";
 
 expect.extend(axeMatchers);
@@ -19,7 +20,7 @@ const enabled =
 describe.skipIf(!enabled)("React Native AXe e2e — extended surface", () => {
   const test = createAxeTest({
     createDevices: () => ({
-      primary: new Device("rn-sample", new AxeCliDriver({ udid: udid! })),
+      primary: new Device("rn-sample", e2eDriver(udid!)),
     }),
   });
 

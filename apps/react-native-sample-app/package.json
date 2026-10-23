@@ -11,7 +11,10 @@
     "app:install": "test -n \"$SIMULATOR_UDID\" && xcrun simctl install \"$SIMULATOR_UDID\" build/ios/Build/Products/Release-iphonesimulator/AXhandleReactNativeSample.app && xcrun simctl launch \"$SIMULATOR_UDID\" dev.axhandle.sample",
     "lint": "eslint .",
     "start": "react-native start",
-    "test": "jest"
+    "test": "jest",
+    "android": "react-native run-android",
+    "build:android": "cd android && ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a",
+    "app:install:android": "test -n \"$ANDROID_SERIAL\" && adb -s \"$ANDROID_SERIAL\" install -r android/app/build/outputs/apk/release/app-release.apk && adb -s \"$ANDROID_SERIAL\" reverse tcp:4100 tcp:4100 && adb -s \"$ANDROID_SERIAL\" shell am start -n dev.axhandle.sample/.MainActivity"
   },
   "dependencies": {
     "react": "19.2.0",

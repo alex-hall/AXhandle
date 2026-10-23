@@ -35,6 +35,7 @@ the Apple tooling a simulator suite ends up needing anyway:
 - [Multiple devices](#multiple-devices)
 - [Command log and step timing](#command-log-and-step-timing)
 - [Simulator control and Face ID](#simulator-control-and-face-id)
+- [Android emulators](#android-emulators)
 - [Preflight diagnostics](#preflight-diagnostics)
 - [Contributing](#contributing)
 
@@ -542,6 +543,59 @@ caveat: the biometric prompt is system UI, invisible to `describe-ui`, so you
 can't poll for it. Trigger the match against something observable in your app
 and verify the outcome there. (The default is `UnsupportedBiometricController`,
 which throws with instructions rather than silently no-oping.)
+
+## Android emulators
+
+The same `Device`, locators and matchers drive Android emulators through
+[adze](https://github.com/alex-hall/adze), a command-line driver with the
+same commands, flags and `serve` protocol as AXe. Point a driver at the adze
+binary and pass the emulator's adb serial where a simulator UDID would go:
+
+```ts
+import {
+  AdzeChangeSignal,
+  AxeEventCachedDriver,
+  AxeServeDriver,
+  Device,
+} from "axhandle";
+
+const serial = "emulator-5554";
+const device = new Device(
+  "android",
+  new AxeEventCachedDriver(new AxeServeDriver({ udid: serial, binary: "adze" }), {
+    signal: new AdzeChangeSignal({ serial }),
+  }),
+);
+```
+
+`AdzeChangeSignal` comes from the system's accessibility events, so unlike
+the iOS bridge the app under test needs nothing added.
+
+The Android counterparts of the simulator controls take the adb serial and
+the application ID:
+
+- `AdbDeviceController` — install, launch, terminate, permissions (the
+  simulator names, `camera`, `photos`, …, or any `android.permission.*`),
+  `openUrl`, plus `reverse(port)` (an emulator's localhost is its own: this
+  lets the app reach a server on the host) and `setLocation`. Launch
+  arguments, erasing a running emulator and the clipboard have no Android
+  equivalent and throw `AndroidUnsupportedError` saying what to do instead.
+- `EmulatorBiometricController` — `match`/`nonMatch` touch the emulator's
+  virtual fingerprint sensor; `enroll` runs `adze biometric enroll`.
+- `AdbScreenRecorder` — `adb screenrecord` with the same record-always
+  lifecycle as `SimulatorVideoRecorder`; Android stops a recording at three
+  minutes.
+
+The React Native e2e suite runs on either platform. Build and install the
+sample on an emulator (`npm --workspace @axhandle/react-native-sample-app run
+build:android`, then `ANDROID_SERIAL=emulator-5554 npm --workspace
+@axhandle/react-native-sample-app run app:install:android`), then:
+
+```bash
+AXE_E2E=1 AXE_E2E_UDID=emulator-5554 AXE_E2E_BINARY=adze AXE_E2E_SERVE=1 \
+  AXE_E2E_EVENTS=adze npx vitest run tests/e2e/react-native.test.ts \
+  tests/e2e/react-native-extended.test.ts --maxWorkers=1
+```
 
 ## Preflight diagnostics
 
