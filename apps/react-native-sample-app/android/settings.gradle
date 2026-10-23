@@ -1,0 +1,7 @@
+// npm workspaces hoist React Native to the repository root's node_modules.
+pluginManagement { includeBuild("../../../node_modules/@react-native/gradle-plugin") }
+plugins { id("com.facebook.react.settings") }
+extensions.configure(com.facebook.react.ReactSettingsExtension){ ex -> ex.autolinkLibrariesFromCommand() }
+rootProject.name = 'AXhandleReactNativeSample'
+include ':app'
+includeBuild('../../../node_modules/@react-native/gradle-plugin')
