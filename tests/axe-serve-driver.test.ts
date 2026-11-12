@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   AxeCommandError,
@@ -95,6 +96,10 @@ const scriptedDriver = (
     },
   };
 };
+
+/** The file a `type --file <path>` protocol line names, if it is one. */
+const typeFilePath = (line: string): string | undefined =>
+  /^type --file (\S+)$/.exec(line.trimEnd())?.[1];
 
 const unusedFallback = (): AxeDriver => ({
   describeUi: async () => {
@@ -265,22 +270,36 @@ describe("AxeServeDriver", () => {
     ]);
   });
 
-  it("routes newline-bearing text to the fallback driver", async () => {
-    const typed: string[] = [];
-    const child = new FakeServeProcess([]);
-    const { driver } = scriptedDriver([child], {
-      fallback: {
-        ...unusedFallback(),
-        type: async (text: string) => {
-          typed.push(text);
-        },
-      },
-    });
+  it("types newline-bearing text through serve from a file it removes afterwards", async () => {
+    const child = new FakeServeProcess(['{"ok":true}']);
+    const { driver } = scriptedDriver([child]);
+    const text = "line one\nline two\r\nline three";
+    let fileContents: string | undefined;
+    const write = child.stdin.write;
+    child.stdin.write = (chunk, callback) => {
+      const path = typeFilePath(chunk);
+      if (path) fileContents = readFileSync(path, "utf8");
+      return write(chunk, callback);
+    };
 
-    await driver.type("line one\nline two");
+    await driver.type(text);
 
-    expect(typed).toEqual(["line one\nline two"]);
-    expect(child.written).toEqual([]); // never even spawned a command
+    expect(child.written).toHaveLength(1);
+    const path = typeFilePath(child.written[0] ?? "");
+    expect(path).toBeDefined();
+    expect(fileContents).toBe(text);
+    expect(existsSync(path!)).toBe(false);
+  });
+
+  it("removes the text file when serve rejects the type command", async () => {
+    const child = new FakeServeProcess([
+      '{"ok":false,"error":"no focused field"}',
+    ]);
+    const { driver } = scriptedDriver([child]);
+
+    await expect(driver.type("a\nb")).rejects.toThrow("no focused field");
+
+    expect(existsSync(typeFilePath(child.written[0] ?? "")!)).toBe(false);
   });
 
   it("dispose kills the process and a later command starts fresh", async () => {
