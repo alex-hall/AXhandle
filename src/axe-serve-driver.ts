@@ -1,4 +1,7 @@
 import { spawn } from "node:child_process";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   AxeCliDriver,
   AxeCommandError,
@@ -33,9 +36,10 @@ export interface AxeServeDriverOptions {
   /** Deadline for the freshly spawned process's ready line. Default: 30s. */
   readyTimeoutMs?: number;
   /**
-   * Driver for the operations the line protocol cannot carry — screenshots
-   * and text with embedded newlines. Default: an AxeCliDriver on the same
-   * binary and udid.
+   * Driver for the operations serve does not carry — screenshots. Default:
+   * an AxeCliDriver on the same binary and udid. Input never goes here: from
+   * AXe 2.0 a running serve process holds the simulator's input lock, so a
+   * separate `axe tap` or `axe type` fails while it is up.
    */
   fallback?: AxeDriver;
   /** Process launcher override; defaults to node's spawn with piped stdio. */
@@ -158,8 +162,16 @@ export class AxeServeDriver implements AxeDriver {
 
   async type(text: string): Promise<void> {
     if (text.includes("\n") || text.includes("\r")) {
-      // The line protocol cannot frame embedded newlines.
-      await this.fallback.type(text);
+      // One protocol line cannot hold a newline, so serve reads the text from
+      // a file. The file can hold a secret: owner-only, removed once typed.
+      const directory = await mkdtemp(join(tmpdir(), "axhandle-type-"));
+      const file = join(directory, "text");
+      try {
+        await writeFile(file, text, { mode: 0o600 });
+        await this.request(["type", "--file", file]);
+      } finally {
+        await rm(directory, { recursive: true, force: true });
+      }
       return;
     }
     await this.request(["type", text]);

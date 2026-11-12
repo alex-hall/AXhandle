@@ -38,6 +38,12 @@ known consumers), and the conventions are now documented in Agent.MD's
 
 ### Changed
 
+- `AxeServeDriver` types text containing newlines through the serve process
+  (`type --file`, from an owner-only temp file removed afterwards) instead of
+  handing it to the fallback CLI driver. From AXe 2.0 a running `axe serve`
+  holds the simulator's input lock, so the separate `axe type` failed with
+  "Another AXe command is using the simulator". The fallback now only takes
+  screenshots.
 - `click()` is renamed to `tap()` on `Device` and `Locator` — iOS has taps,
   not clicks. `click()` and `ClickOptions` remain as deprecated aliases and
   will be removed in 1.0. Command-log entries now record `tap` (locator
