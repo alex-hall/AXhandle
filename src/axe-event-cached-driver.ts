@@ -1,5 +1,10 @@
 import type { UiChangeSignal } from "./change-signal.js";
-import type { AxeDriver, AxeSwipeGesture, AxeTapTarget } from "./types.js";
+import type {
+  AxeDriver,
+  AxeSwipeGesture,
+  AxeTapTarget,
+  DescribeUiOptions,
+} from "./types.js";
 
 export interface AxeEventCachedDriverOptions {
   /**
@@ -84,11 +89,17 @@ export class AxeEventCachedDriver implements AxeDriver {
     if (inner.screenshot) this.screenshot = inner.screenshot.bind(inner);
   }
 
-  async describeUi(): Promise<unknown> {
+  /**
+   * The cached dump while the screen is clean, a new one otherwise.
+   * `fresh: true` always dumps (and refreshes the cache): see
+   * DescribeUiOptions for who needs that and why.
+   */
+  async describeUi(options: DescribeUiOptions = {}): Promise<unknown> {
     this.options.signal.ensureWatching();
     const maxStaleness =
       this.options.maxStalenessMs ?? DEFAULT_MAX_STALENESS_MS;
     if (
+      !options.fresh &&
       !this.dirty &&
       this.cachedUi !== undefined &&
       Date.now() - this.cachedAt < maxStaleness
@@ -99,7 +110,7 @@ export class AxeEventCachedDriver implements AxeDriver {
     // so the next read re-dumps. Over-invalidation is safe; staleness is
     // not.
     this.dirty = false;
-    const ui = await this.inner.describeUi();
+    const ui = await this.inner.describeUi(options);
     this.cachedUi = ui;
     this.cachedAt = Date.now();
     return ui;

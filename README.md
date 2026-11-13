@@ -350,6 +350,25 @@ exception is `device.wallSleep(ms)`, for floors that must genuinely elapse
 floor) — always real time, never the device clock, which may end poll
 sleeps early ([Performance tuning](#performance-tuning)).
 
+### Targets that are still moving
+
+A frame read while the screen moves is already wrong when the tap
+arrives: a list still coasting after a swipe puts the tap on the row next
+to the one asked for. So after anything that can move the screen — a
+swipe, `scrollIntoView`, a long-press, and every tap, since taps open
+sheets and navigate — the next locator action reads its target's frame a
+second time and acts only once two reads agree within a point. A flow that
+already read the screen since the motion has paid for that read; otherwise
+it costs one dump. While the target keeps moving the action keeps reading,
+up to `motionSettleTimeout` (default 2500ms), and then acts on the latest
+read. Point taps resolve nothing and are not checked; a tap that hits
+nothing (a sheet whose button is not wired up yet) is the job of
+`tap({ until })`.
+
+```ts
+const device = new Device("primary", driver, { motionSettleTimeout: 1_000 });
+```
+
 ## Performance tuning
 
 An accessibility dump costs real time — the classic CLI pays framework and
