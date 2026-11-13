@@ -10,6 +10,7 @@ import type {
   TextQueryOptions,
 } from "./locator.js";
 import { poll, PollTimeoutError } from "./poll.js";
+import { framesAgree } from "./settle.js";
 import { checkedState } from "./state.js";
 import { normalizeAxeTree } from "./tree.js";
 import type {
@@ -44,6 +45,24 @@ export interface DeviceOptions {
    * disables reuse entirely.
    */
   cacheWindowMs?: number;
+  /**
+   * How long a locator action may spend confirming that its target has
+   * stopped moving, in milliseconds. After anything that can move the
+   * screen — a swipe, scrollIntoView, a long-press, and every tap (taps
+   * open sheets and navigate) — the next action that resolves an element
+   * (a locator tap, type, fill, check, or scrollIntoView's measurement)
+   * reads the element's frame again and acts only once two reads agree
+   * within a point. A list still coasting after a swipe otherwise hands
+   * out a frame that is already wrong when the tap arrives, and the tap
+   * lands on a neighboring row.
+   *
+   * When this runs out the action goes ahead on the latest read, as it
+   * would have without the check. Point taps resolve nothing and are never
+   * checked. An earlier read taken since the motion counts as the
+   * confirming read, so a flow that waited on the screen in between pays
+   * nothing. Default 2500; `0` turns the check off.
+   */
+  motionSettleTimeout?: number;
 }
 
 export type DeviceCommandStatus = "passed" | "failed";
@@ -152,6 +171,14 @@ export interface ScrollIntoViewOptions {
   viewportHeight?: number;
 }
 
+const DEFAULT_MOTION_SETTLE_TIMEOUT = 2_500;
+
+/** A resolved element and the tree it was resolved from. */
+interface ResolvedTarget {
+  tree: AccessibilityTree;
+  node: AccessibilityNode;
+}
+
 const defaultTimeouts: DeviceTimeouts = {
   action: 3_000,
   assertion: 5_000,
@@ -167,12 +194,25 @@ export class Device {
   readonly timeouts: DeviceTimeouts;
   /** Effective snapshot-reuse window after clamping; see DeviceOptions. */
   readonly cacheWindowMs: number;
+  /** See DeviceOptions.motionSettleTimeout. */
+  readonly motionSettleTimeout: number;
   private tail: Promise<void> = Promise.resolve();
   private sequence = 0;
   private readonly log: DeviceCommandLogEntry[] = [];
   /** Set while the current async context holds this device's queue slot. */
   private readonly holdingQueue = new AsyncLocalStorage<true>();
   private cache: { snapshot: UiSnapshot; at: number } | undefined;
+  /**
+   * Something may have moved the screen since the last action confirmed
+   * its target was still. See DeviceOptions.motionSettleTimeout.
+   */
+  private unsettled = false;
+  /**
+   * The last two distinct dumps read since the screen last moved — the
+   * earlier one can serve as a settle check's confirming read for free.
+   */
+  private dumpsSinceMotion: { earlier?: UiSnapshot; latest?: UiSnapshot } =
+    {};
 
   constructor(
     readonly name: string,
@@ -208,6 +248,10 @@ export class Device {
     this.cacheWindowMs = Math.min(
       Math.max(0, options.cacheWindowMs ?? 50),
       cap,
+    );
+    this.motionSettleTimeout = Math.max(
+      0,
+      options.motionSettleTimeout ?? DEFAULT_MOTION_SETTLE_TIMEOUT,
     );
   }
 
@@ -428,9 +472,10 @@ export class Device {
     y: number,
     options: RawActionOptions = {},
   ): Promise<void> {
-    await this.enqueue(options.command ?? "tap-point", () =>
-      this.driver.tap({ kind: "point", x, y }),
-    );
+    await this.enqueue(options.command ?? "tap-point", () => {
+      this.markMoved();
+      return this.driver.tap({ kind: "point", x, y });
+    });
   }
 
   /** Long-press at a point; requires driver support. See tapPoint on `command`. */
@@ -445,9 +490,10 @@ export class Device {
         "The configured AXe driver does not support long-presses.",
       );
     }
-    await this.enqueue(options.command ?? "long-press", () =>
-      longPress(x, y, options.holdMs),
-    );
+    await this.enqueue(options.command ?? "long-press", () => {
+      this.markMoved();
+      return longPress(x, y, options.holdMs);
+    });
   }
 
   /**
@@ -467,6 +513,7 @@ export class Device {
     }
 
     return this.enqueue("tap-label", async () => {
+      this.markMoved();
       try {
         await tapLabel(label, options.waitTimeout);
         return true;
@@ -485,7 +532,10 @@ export class Device {
     if (!swipe) {
       throw new Error("The configured AXe driver does not support swipes.");
     }
-    await this.enqueue(options.command ?? "swipe", () => swipe(gesture));
+    await this.enqueue(options.command ?? "swipe", () => {
+      this.markMoved();
+      return swipe(gesture);
+    });
   }
 
   /**
@@ -506,8 +556,14 @@ export class Device {
     const settleMs = options.settleMs ?? 250;
 
     for (let swipes = 0; ; swipes++) {
-      const { tree } = await this.uiSnapshot();
-      const node = this.resolveTagged(locator, tree);
+      // The measurement decides whether to swipe again, so after a swipe it
+      // must not be a frame read mid-coast.
+      const { tree, node } = await this.enqueue("inspect", () =>
+        this.settled(locator, async (fresh) => {
+          const { tree } = await this.readSnapshot(fresh);
+          return { tree, node: this.resolveTagged(locator, tree) };
+        }),
+      );
       const frame = node.frame;
       if (!frame) {
         throw new LocatorResolutionError(
@@ -596,7 +652,8 @@ export class Device {
     options: WaitOptions = {},
   ): Promise<void> {
     await this.enqueue("type", async () => {
-      const { tree, node } = await this.resolveActionTarget(locator, options);
+      const { tree, node } = await this.resolveSettledTarget(locator, options);
+      this.markMoved();
       await this.driver.tap(this.tapTargetFor(node, tree));
       await this.driver.type(text);
     });
@@ -608,7 +665,8 @@ export class Device {
     options: FillOptions = {},
   ): Promise<void> {
     await this.enqueue("fill", async () => {
-      const { tree, node } = await this.resolveActionTarget(locator, options);
+      const { tree, node } = await this.resolveSettledTarget(locator, options);
+      this.markMoved();
       await this.driver.tap(this.tapTargetFor(node, tree));
       // HID 227 is Left Command and 4 is the "A" key.
       await this.driver.keyCombo([227], 4);
@@ -629,15 +687,17 @@ export class Device {
     options: WaitOptions = {},
   ): Promise<void> {
     await this.enqueue(expected ? "check" : "uncheck", async () => {
-      const { tree, node } = await this.resolveActionTarget(locator, options);
+      const { tree, node } = await this.resolveSettledTarget(locator, options);
       const current = checkedState(node);
       if (current === undefined) {
         throw new Error(
           `Cannot ${expected ? "check" : "uncheck"} ${locator.describe()}: AXe did not report a switch state.`,
         );
       }
-      if (current !== expected)
+      if (current !== expected) {
+        this.markMoved();
         await this.driver.tap(this.tapTargetFor(node, tree));
+      }
     });
 
     await locator.waitFor((node) => checkedState(node) === expected, {
@@ -680,20 +740,91 @@ export class Device {
    * The current accessibility snapshot. Reuses the last dump when it is
    * younger than cacheWindowMs and no action has invalidated it since
    * (execute() drops the cache after every non-read command); otherwise runs
-   * a fresh dump and refreshes the cache.
+   * a fresh dump and refreshes the cache. `fresh` skips this cache and asks
+   * the driver to skip its own (see DescribeUiOptions).
    */
-  private async readSnapshot(): Promise<UiSnapshot> {
+  private async readSnapshot(fresh = false): Promise<UiSnapshot> {
     if (
+      !fresh &&
       this.cacheWindowMs > 0 &&
       this.cache &&
       this.clock.now() - this.cache.at <= this.cacheWindowMs
     ) {
       return this.cache.snapshot;
     }
-    const raw = await this.driver.describeUi();
+    const raw = await (fresh
+      ? this.driver.describeUi({ fresh: true })
+      : this.driver.describeUi());
     const snapshot: UiSnapshot = { raw, tree: normalizeAxeTree(raw) };
     this.cache = { snapshot, at: this.clock.now() };
+    // A caching driver hands back the same object for a dump it is
+    // replaying; only a new object is a new look at the screen.
+    const { latest } = this.dumpsSinceMotion;
+    if (latest?.raw !== raw) {
+      this.dumpsSinceMotion = { earlier: latest, latest: snapshot };
+    }
     return snapshot;
+  }
+
+  /** Record that the screen may be moving; see DeviceOptions.motionSettleTimeout. */
+  private markMoved(): void {
+    this.unsettled = true;
+    this.dumpsSinceMotion = {};
+  }
+
+  /**
+   * Resolve a target and, when the screen may have moved since the last
+   * check, re-read until two reads put it in the same place (or
+   * motionSettleTimeout runs out, when the latest read wins). `resolve`
+   * reads the screen; `fresh` asks it to bypass every cache.
+   */
+  private async settled<T extends ResolvedTarget>(
+    locator: Locator,
+    resolve: (fresh: boolean) => Promise<T>,
+  ): Promise<T> {
+    let current = await resolve(false);
+    if (!this.unsettled || this.motionSettleTimeout === 0) return current;
+
+    const deadline = this.clock.now() + this.motionSettleTimeout;
+    let previous = this.nodeInEarlierDump(locator, current.tree);
+    for (;;) {
+      if (
+        previous !== undefined &&
+        framesAgree(previous.frame, current.node.frame)
+      ) {
+        this.unsettled = false;
+        return current;
+      }
+      if (this.clock.now() >= deadline) return current;
+      previous = current.node;
+      current = await resolve(true);
+    }
+  }
+
+  /**
+   * The locator's element in the dump read before `tree`, when both were
+   * read since the screen last moved — a confirming read already paid for.
+   */
+  private nodeInEarlierDump(
+    locator: Locator,
+    tree: AccessibilityTree,
+  ): AccessibilityNode | undefined {
+    const { earlier, latest } = this.dumpsSinceMotion;
+    if (earlier === undefined || latest?.tree !== tree) return undefined;
+    try {
+      return locator.resolveFrom(earlier.tree);
+    } catch {
+      return undefined;
+    }
+  }
+
+  private resolveSettledTarget(
+    locator: Locator,
+    options: WaitOptions,
+  ): Promise<ResolvedTarget> {
+    return this.settled(locator, (fresh) =>
+      this.resolveActionTarget(locator, options, fresh),
+    );
   }
 
   /** Strict resolution against a held tree, with the device-name tag that
@@ -712,7 +843,8 @@ export class Device {
   }
 
   private async tapOnce(locator: Locator, options: WaitOptions): Promise<void> {
-    const { tree, node } = await this.resolveActionTarget(locator, options);
+    const { tree, node } = await this.resolveSettledTarget(locator, options);
+    this.markMoved();
     await this.driver.tap(this.tapTargetFor(node, tree));
   }
 
@@ -740,17 +872,15 @@ export class Device {
   private async resolveActionTarget(
     locator: Locator,
     options: WaitOptions,
-  ): Promise<{
-    tree: ReturnType<typeof normalizeAxeTree>;
-    node: AccessibilityNode;
-  }> {
+    fresh = false,
+  ): Promise<ResolvedTarget> {
     const timeout = options.timeout ?? this.timeouts.action;
     const interval = options.interval ?? this.timeouts.interval;
     const deadline = this.clock.now() + timeout;
     let lastError: LocatorResolutionError | undefined;
 
     while (true) {
-      const { tree } = await this.readSnapshot();
+      const { tree } = await this.readSnapshot(fresh);
       try {
         const node = locator.resolveFrom(tree);
         if (!node.visible) {

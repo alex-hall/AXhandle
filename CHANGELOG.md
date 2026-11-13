@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### Settle check after motion
+
+- After anything that can move the screen (a swipe, `scrollIntoView`, a
+  long-press, and every tap, since taps open sheets and navigate), the
+  next action that resolves an element (a locator `tap`, `type`, `fill`,
+  `check`/`uncheck`, or `scrollIntoView`'s measurement) reads the
+  element's frame a second time and acts only once two reads agree within
+  a point. A list still coasting after a swipe used to hand out a frame
+  that was already stale when the tap arrived, and the tap landed on the
+  row next to the one asked for. Once the screen is still the check costs
+  one read (none when the flow already read the screen since the motion);
+  while it moves it keeps reading, up to `DeviceOptions.motionSettleTimeout`
+  (default 2500ms, `0` turns it off), and then acts on the latest read as
+  before. Point taps resolve nothing and are not checked.
+- `AxeDriver.describeUi` takes `{ fresh: true }` for a dump taken now.
+  `AxeEventCachedDriver` honors it: the confirming read has to bypass the
+  cache, because scroll inertia and sheet animations are native and an
+  app-side change beacon stays silent through them. Decorators that sit
+  above a cache should pass the option through.
+- `framesAgree(a, b)` is exported: the comparison the check uses.
+
 ### Upstream AXe serve
 
 - `AxeServeDriver` speaks AXe's own `axe serve` as well as the fork's. It

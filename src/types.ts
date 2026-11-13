@@ -33,9 +33,22 @@ export interface AxeSwipeGesture {
   durationMs?: number;
 }
 
+export interface DescribeUiOptions {
+  /**
+   * The caller needs a dump taken NOW: a driver that serves dumps from a
+   * cache must go to the simulator instead. `Device` asks for this when it
+   * confirms a target has stopped moving — scroll inertia and sheet
+   * animations are native, so an app-side change beacon stays silent
+   * through them and a cached dump would vouch for a screen still in
+   * motion. Drivers without a cache can ignore it; decorators should pass
+   * it through.
+   */
+  fresh?: boolean;
+}
+
 /** The narrow, typed boundary around the AXe CLI. */
 export interface AxeDriver {
-  describeUi(): Promise<unknown>;
+  describeUi(options?: DescribeUiOptions): Promise<unknown>;
   tap(target: AxeTapTarget): Promise<void>;
   /**
    * Tap the first element whose accessibility label matches exactly, waiting

@@ -104,6 +104,7 @@ export type {
   SimulatorCommandRunnerOptions,
   SimulatorController,
 } from "./simulator-control.js";
+export { framesAgree } from "./settle.js";
 export { normalizeAxeNode, normalizeAxeTree } from "./tree.js";
 export type {
   AccessibilityNode,
@@ -112,6 +113,7 @@ export type {
   AxeSwipeGesture,
   AxeTapTarget,
   Clock,
+  DescribeUiOptions,
   FillOptions,
   Frame,
   WaitOptions,
