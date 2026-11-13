@@ -44,7 +44,23 @@ export interface AxeServeDriverOptions {
   fallback?: AxeDriver;
   /** Process launcher override; defaults to node's spawn with piped stdio. */
   launch?: (binary: string, args: readonly string[]) => AxeServeProcess;
+  /**
+   * Ask for the smaller accessibility key set on every `describe-ui` line.
+   * Upstream AXe takes `--minimal-keys` per command, so the driver adds it
+   * to each dump once the ready line shows an upstream serve. The fork's
+   * serve takes it only when it starts, so pass it through `launch` there.
+   * Default: false.
+   */
+  minimalKeys?: boolean;
 }
+
+/**
+ * Which serve protocol answered. `fork` is the alex-hall/AXe serve
+ * (`{"ready":true}`, `{"ok":…,"error":"…","tree":…}`); `upstream` is AXe's own
+ * serve, whose every line is the `axe --output json` command result
+ * (`didError`, `error.message`, `data.result`). Read from the ready line.
+ */
+export type AxeServeDialect = "fork" | "upstream";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 
@@ -74,6 +90,7 @@ export class AxeServeDriver implements AxeDriver {
   private child: AxeServeProcess | undefined;
   private pendingResponse: ((line: string) => void) | undefined;
   private ready: Promise<void> | undefined;
+  private dialectOfChild: AxeServeDialect | undefined;
 
   constructor(private readonly options: AxeServeDriverOptions) {
     this.binary = options.binary ?? "axe";
@@ -90,8 +107,13 @@ export class AxeServeDriver implements AxeDriver {
   }
 
   async describeUi(): Promise<unknown> {
-    const response = await this.request(["describe-ui"]);
-    return response.tree;
+    const response = await this.request(() => this.describeUiLine());
+    return response.payload;
+  }
+
+  /** The protocol the running serve process speaks; undefined before its ready line. */
+  get dialect(): AxeServeDialect | undefined {
+    return this.dialectOfChild;
   }
 
   async tap(target: AxeTapTarget): Promise<void> {
@@ -127,7 +149,7 @@ export class AxeServeDriver implements AxeDriver {
         const message = error instanceof Error ? error.message : String(error);
         const absent = message.includes("No accessibility element matched");
         if (!absent || Date.now() >= deadline) throw error;
-        await this.request(["describe-ui"]).catch(() => undefined);
+        await this.request(() => this.describeUiLine()).catch(() => undefined);
       }
     }
   }
@@ -202,13 +224,30 @@ export class AxeServeDriver implements AxeDriver {
     this.child = undefined;
     this.ready = undefined;
     this.pendingResponse = undefined;
+    this.dialectOfChild = undefined;
   }
 
   // ── Serve process management ─────────────────────────────────────────────
 
-  private async request(args: readonly string[]): Promise<ServeResponse> {
-    const line = args.map(quoteToken).join(" ");
+  /**
+   * The dump line. Only upstream takes `--minimal-keys` per command; the
+   * dialect is known by the time a line is built, because every request
+   * waits for the ready line first.
+   */
+  private describeUiLine(): string[] {
+    return this.options.minimalKeys === true &&
+      this.dialectOfChild === "upstream"
+      ? ["describe-ui", "--minimal-keys"]
+      : ["describe-ui"];
+  }
+
+  private async request(
+    argsOrBuilder: readonly string[] | (() => readonly string[]),
+  ): Promise<ServeReply> {
     await this.ensureRunning();
+    const args =
+      typeof argsOrBuilder === "function" ? argsOrBuilder() : argsOrBuilder;
+    const line = args.map(quoteToken).join(" ");
     const child = this.child;
     if (!child) {
       throw new AxeCommandError(
@@ -245,9 +284,9 @@ export class AxeServeDriver implements AxeDriver {
       });
     });
 
-    let response: ServeResponse;
+    let response: ServeReply;
     try {
-      response = JSON.parse(raw) as ServeResponse;
+      response = readReply(JSON.parse(raw));
     } catch (error) {
       // A non-JSON line means the protocol itself derailed — kill the
       // process rather than risk pairing later replies with the wrong
@@ -255,7 +294,7 @@ export class AxeServeDriver implements AxeDriver {
       this.dispose();
       throw new AxeCommandError(
         args,
-        `serve returned a non-JSON response line: ${raw.slice(0, 500)}`,
+        `serve returned a non-JSON or unrecognized response line: ${raw.slice(0, 500)}`,
         error,
         this.binary,
       );
@@ -263,7 +302,7 @@ export class AxeServeDriver implements AxeDriver {
     if (!response.ok) {
       throw new AxeCommandError(
         args,
-        response.error ?? "command failed",
+        response.error,
         undefined,
         this.binary,
       );
@@ -326,8 +365,9 @@ export class AxeServeDriver implements AxeDriver {
         clearTimeout(timer);
         this.pendingResponse = undefined;
         try {
-          const parsed = JSON.parse(line) as { ready?: boolean };
-          if (parsed.ready) {
+          const dialect = readyDialect(JSON.parse(line));
+          if (dialect) {
+            this.dialectOfChild = dialect;
             resolve();
             return;
           }
@@ -361,11 +401,65 @@ export class AxeServeDriver implements AxeDriver {
   }
 }
 
-interface ServeResponse {
+/** One reply line, whichever protocol sent it. */
+interface ServeReply {
   ok: boolean;
-  error?: string;
-  tree?: unknown;
+  /** Why the command failed; set when `ok` is false. */
+  error: string;
+  /** The command's result: the tree for `describe-ui`. */
+  payload?: unknown;
 }
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+/** Upstream's `axe --output json` command result, as far as the driver reads it. */
+const isCommandResult = (value: Record<string, unknown>): boolean =>
+  typeof value["didError"] === "boolean";
+
+/**
+ * The dialect a ready line names, or undefined if it is not a ready line.
+ * Fork: `{"ready":true}`. Upstream: a successful command result whose
+ * `data.result.ready` is true.
+ */
+const readyDialect = (parsed: unknown): AxeServeDialect | undefined => {
+  if (!isRecord(parsed)) return undefined;
+  if (isCommandResult(parsed)) {
+    const data = parsed["data"];
+    const result = isRecord(data) ? data["result"] : undefined;
+    return parsed["didError"] === false &&
+      isRecord(result) &&
+      result["ready"] === true
+      ? "upstream"
+      : undefined;
+  }
+  return parsed["ready"] === true ? "fork" : undefined;
+};
+
+/** Read a reply line in either protocol. Throws on anything that is neither. */
+const readReply = (parsed: unknown): ServeReply => {
+  if (!isRecord(parsed)) {
+    throw new Error("reply is not a JSON object");
+  }
+  if (isCommandResult(parsed)) {
+    const data = parsed["data"];
+    const failure = parsed["error"];
+    const message = isRecord(failure)
+      ? String(failure["message"] ?? failure["code"] ?? "command failed")
+      : "command failed";
+    return {
+      ok: parsed["didError"] === false,
+      error: message,
+      payload: isRecord(data) ? data["result"] : undefined,
+    };
+  }
+  return {
+    ok: parsed["ok"] === true,
+    error:
+      typeof parsed["error"] === "string" ? parsed["error"] : "command failed",
+    payload: parsed["tree"],
+  };
+};
 
 /**
  * Serve-side tokenizer rules: double quotes with backslash escapes. Flags

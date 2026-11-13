@@ -40,6 +40,7 @@ export type {
 } from "./axe-cli-driver.js";
 export { AxeServeDriver } from "./axe-serve-driver.js";
 export type {
+  AxeServeDialect,
   AxeServeDriverOptions,
   AxeServeProcess,
 } from "./axe-serve-driver.js";
