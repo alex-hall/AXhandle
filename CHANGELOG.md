@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+### Upstream AXe serve
+
+- `AxeServeDriver` speaks AXe's own `axe serve` as well as the fork's. It
+  reads the dialect from the ready line: upstream answers every line with the
+  `axe --output json` command result (`didError`, `error.message`,
+  `data.result`), the fork with `ok`/`error`/`tree`. `driver.dialect` reports
+  which one answered.
+- `minimalKeys` option: adds `--minimal-keys` to every `describe-ui` line on
+  an upstream serve. The fork takes that flag only when serve starts, so pass
+  it through `launch` there.
+
 ### Android emulators
 
 - `AdbDeviceController`, `EmulatorBiometricController` and
